@@ -1,6 +1,7 @@
 from collections.abc import Callable
 
 from eventx.fetchers.devfolio import fetch_devfolio_hackathons
+from eventx.fetchers.devpost import fetch_devpost_hackathons
 from eventx.fetchers.dorahacks import fetch_dorahacks_hackathons
 from eventx.fetchers.hack2skill import fetch_hack2skill_hackathons
 from eventx.fetchers.hackerearth import fetch_hackerearth_hackathons
@@ -12,6 +13,7 @@ Fetcher = Callable[[], list[HackathonEvent]]
 FETCHERS: list[tuple[str, Fetcher]] = [
     ("unstop", lambda: fetch_unstop_hackathons()),
     ("devfolio", fetch_devfolio_hackathons),
+    ("devpost", fetch_devpost_hackathons),
     ("hackerearth", fetch_hackerearth_hackathons),
     ("hack2skill", fetch_hack2skill_hackathons),
     ("dorahacks", fetch_dorahacks_hackathons),

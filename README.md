@@ -2,7 +2,7 @@
 
 Get Bangalore hackathon registration links delivered to your Telegram.
 
-**Platforms:** Unstop, Devfolio, HackerEarth, Hack2Skill, DoraHacks
+**Platforms:** Unstop, Devfolio, Devpost, HackerEarth, Hack2Skill, DoraHacks
 
 ## Setup
 
@@ -89,7 +89,7 @@ python main.py
 
 ## How it works
 
-1. Fetches open hackathons from Unstop, Devfolio, HackerEarth, Hack2Skill, and DoraHacks
+1. Fetches open hackathons from Unstop, Devfolio, Devpost, HackerEarth, Hack2Skill, and DoraHacks
 2. Filters for Bangalore / Bengaluru (city, address, org name, or URL)
 3. Skips events you've already been notified about (SQLite)
 4. Sends a Telegram message with the registration link
@@ -100,6 +100,7 @@ python main.py
 |----------|--------|-------------------|
 | Unstop | Public API | Best for India/college hackathons |
 | Devfolio | Public API | Good — includes city in location |
+| Devpost | Public API | Global; filters on displayed location |
 | HackerEarth | HTML listing | Mostly online; catches Bangalore in title/URL |
 | Hack2Skill | Public API | Indian events; filters on title/URL |
 | DoraHacks | Public API | Global; filters on venue/title |
@@ -115,6 +116,7 @@ EventX/
 │   ├── fetchers/
 │   │   ├── unstop.py
 │   │   ├── devfolio.py
+│   │   ├── devpost.py
 │   │   ├── hackerearth.py
 │   │   ├── hack2skill.py
 │   │   └── dorahacks.py

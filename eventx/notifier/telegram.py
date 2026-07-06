@@ -15,6 +15,7 @@ def _format_deadline(event: HackathonEvent) -> str:
 PLATFORM_LABELS = {
     "unstop": "Unstop",
     "devfolio": "Devfolio",
+    "devpost": "Devpost",
     "hackerearth": "HackerEarth",
     "hack2skill": "Hack2Skill",
     "dorahacks": "DoraHacks",

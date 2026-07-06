@@ -1,5 +1,6 @@
 import argparse
 import http.server
+import socket
 import socketserver
 import sys
 import webbrowser
@@ -9,6 +10,7 @@ from eventx.dashboard import collect_bangalore_events, render_dashboard_html
 
 DEFAULT_OUTPUT = Path(__file__).resolve().parent / "docs" / "index.html"
 DEFAULT_PORT = 8080
+MAX_PORT_TRIES = 20
 
 
 def generate_dashboard(*, output: Path, max_pages: int | None) -> int:
@@ -27,6 +29,19 @@ def generate_dashboard(*, output: Path, max_pages: int | None) -> int:
     return total
 
 
+def _find_free_port(start: int) -> int:
+    for offset in range(MAX_PORT_TRIES):
+        port = start + offset
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind(("", port))
+            except OSError:
+                continue
+            return port
+    raise OSError(f"No free port found in range {start}-{start + MAX_PORT_TRIES - 1}")
+
+
 def serve_dashboard(directory: Path, port: int) -> None:
     handler = http.server.SimpleHTTPRequestHandler
 
@@ -34,8 +49,15 @@ def serve_dashboard(directory: Path, port: int) -> None:
         def __init__(self, *args, **kwargs):
             super().__init__(*args, directory=str(directory), **kwargs)
 
-    with socketserver.TCPServer(("", port), DashboardHandler) as httpd:
-        url = f"http://localhost:{port}/"
+    class ReusableTCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+
+    chosen_port = _find_free_port(port)
+    if chosen_port != port:
+        print(f"Port {port} is busy, using {chosen_port} instead.")
+
+    with ReusableTCPServer(("", chosen_port), DashboardHandler) as httpd:
+        url = f"http://127.0.0.1:{chosen_port}/"
         print(f"Serving dashboard at {url}")
         print("Press Ctrl+C to stop.")
         try:

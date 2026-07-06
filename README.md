@@ -54,41 +54,36 @@ Send alerts:
 python main.py
 ```
 
-## Schedule it (automatic every 6 hours)
+## Schedule it (GitHub Actions — every 6 hours)
 
-### Option A — Windows Task Scheduler (local, already set up)
+EventX runs automatically via [GitHub Actions](https://github.com/Shashank-V-A/EventX/actions) — no need to keep your PC on.
 
-Runs on your PC every 6 hours using your local `.env` and `data/events.db`.
+### One-time setup
 
-```powershell
-# Install / update the scheduled task
-powershell -ExecutionPolicy Bypass -File scripts\install-task.ps1
+1. **Add repository secrets** at  
+   [github.com/Shashank-V-A/EventX/settings/secrets/actions](https://github.com/Shashank-V-A/EventX/settings/secrets/actions)
 
-# Run immediately (test)
-Start-ScheduledTask -TaskName "EventX Hackathon Alerts"
+   | Secret name | Value |
+   |-------------|-------|
+   | `TELEGRAM_BOT_TOKEN` | Your bot token from @BotFather |
+   | `TELEGRAM_CHAT_ID` | Your Telegram chat ID (`8637683031` if you used the same bot) |
 
-# View logs
-type logs\eventx.log
+2. **Enable workflows** — open the [Actions tab](https://github.com/Shashank-V-A/EventX/actions), click **I understand my workflows, go ahead and enable them** if prompted.
 
-# Remove the task
-Unregister-ScheduledTask -TaskName "EventX Hackathon Alerts" -Confirm:$false
+3. **Test manually** — select **EventX Alerts** → **Run workflow** → **Run workflow**.
+
+After that, it runs every 6 hours on GitHub's servers. Seen events are stored in Actions cache so you won't get duplicate alerts.
+
+> **Note:** If you already ran EventX locally first, the initial GitHub run may resend alerts for hackathons you've already seen (GitHub starts with an empty cache). After that first run, only new hackathons are sent.
+
+### Local run (optional)
+
+You can still run manually on your machine for testing:
+
+```bash
+python main.py --dry-run
+python main.py
 ```
-
-Your PC needs to be on (or waking) for this to run.
-
-### Option B — GitHub Actions (cloud, 24/7)
-
-Works even when your PC is off. Workflow file: `.github/workflows/eventx.yml`
-
-1. Create a **private** repo on GitHub and push this project
-2. Go to **Settings → Secrets and variables → Actions → New repository secret**
-   - `TELEGRAM_BOT_TOKEN` — your bot token
-   - `TELEGRAM_CHAT_ID` — your chat ID
-3. Open **Actions** tab → enable workflows → run **EventX Alerts** manually once to test
-
-GitHub Actions free tier allows scheduled workflows on private repos.
-
-**Tip:** Use only one scheduler (Windows *or* GitHub), or both will share dedup only within their own environment and may send duplicate alerts.
 
 ## How it works
 

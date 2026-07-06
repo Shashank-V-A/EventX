@@ -2,9 +2,13 @@ name: EventX Alerts
 
 on:
   schedule:
-    # Every 6 hours (UTC). Adjust if you want different IST times.
+    # Every 6 hours UTC (12:30 AM, 6:30 AM, 12:30 PM, 6:30 PM IST)
     - cron: "0 */6 * * *"
   workflow_dispatch:
+
+concurrency:
+  group: eventx-alerts
+  cancel-in-progress: false
 
 jobs:
   alert:

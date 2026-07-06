@@ -1,0 +1,36 @@
+name: EventX Alerts
+
+on:
+  schedule:
+    # Every 6 hours (UTC). Adjust if you want different IST times.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Restore seen-events database
+        uses: actions/cache@v4
+        with:
+          path: data/events.db
+          key: eventx-seen-events
+          restore-keys: eventx-seen-events
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch hackathons and send Telegram alerts
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          UNSTOP_MAX_PAGES: "10"
+          INCLUDE_ONLINE: "false"
+        run: python main.py

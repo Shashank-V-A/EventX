@@ -12,9 +12,19 @@ def _format_deadline(event: HackathonEvent) -> str:
     return event.deadline.strftime("%d %b %Y, %I:%M %p IST")
 
 
+PLATFORM_LABELS = {
+    "unstop": "Unstop",
+    "devfolio": "Devfolio",
+    "hackerearth": "HackerEarth",
+    "hack2skill": "Hack2Skill",
+    "dorahacks": "DoraHacks",
+}
+
+
 def format_message(event: HackathonEvent) -> str:
     location = event.location or "Not specified"
     org = event.organisation or "Unknown"
+    platform = PLATFORM_LABELS.get(event.platform, event.platform.title())
 
     return (
         f"🚀 <b>New Hackathon — Bangalore</b>\n\n"
@@ -22,8 +32,9 @@ def format_message(event: HackathonEvent) -> str:
         f"📍 Location: {location}\n"
         f"🌐 Mode: {event.mode}\n"
         f"🏢 Host: {org}\n"
+        f"📱 Platform: {platform}\n"
         f"⏰ Registration closes: {_format_deadline(event)}\n"
-        f"🔗 <a href=\"{event.registration_url}\">Register on Unstop</a>"
+        f"🔗 <a href=\"{event.registration_url}\">Register now</a>"
     )
 
 

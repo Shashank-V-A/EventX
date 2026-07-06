@@ -5,6 +5,7 @@ __pycache__/
 .venv/
 venv/
 sample_*.json
+tmp_*
 # Keep events.db as a seed; Actions cache updates it between runs
 !data/
 !data/events.db

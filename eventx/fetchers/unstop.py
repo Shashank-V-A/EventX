@@ -1,23 +1,10 @@
-from datetime import datetime
-
 import httpx
 
 from eventx.config import UNSTOP_MAX_PAGES
+from eventx.fetchers._common import USER_AGENT, parse_datetime
 from eventx.models import HackathonEvent
 
 UNSTOP_SEARCH_URL = "https://unstop.com/api/public/opportunity/search-result"
-USER_AGENT = "EventX/1.0 (hackathon alerts; personal use)"
-
-
-def _parse_datetime(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-
-
 def _extract_location(item: dict) -> str | None:
     address = item.get("address_with_country_logo") or {}
     city = address.get("city")
@@ -39,7 +26,7 @@ def _normalize_item(item: dict) -> HackathonEvent:
         registration_url=item.get("seo_url") or f"https://unstop.com/{item.get('public_url', '')}",
         mode=item.get("region", "unknown"),
         location=_extract_location(item),
-        deadline=_parse_datetime(regn.get("end_regn_dt")),
+        deadline=parse_datetime(regn.get("end_regn_dt")),
         organisation=organisation,
     )
 

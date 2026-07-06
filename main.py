@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from eventx.fetchers.unstop import fetch_unstop_hackathons
+from eventx.fetchers import fetch_all_hackathons
 from eventx.filter import filter_bangalore
 from eventx.notifier.telegram import notify_events
 from eventx.storage import get_new_events, init_db, mark_notified
@@ -10,9 +10,13 @@ from eventx.storage import get_new_events, init_db, mark_notified
 def run(*, dry_run: bool = False, max_pages: int | None = None) -> int:
     init_db()
 
-    print("Fetching hackathons from Unstop...")
-    all_events = fetch_unstop_hackathons(max_pages=max_pages)
-    print(f"  Found {len(all_events)} open hackathons")
+    by_platform = fetch_all_hackathons(max_pages=max_pages)
+    all_events = []
+    for platform, events in by_platform.items():
+        print(f"  {platform}: {len(events)} open hackathons")
+        all_events.extend(events)
+
+    print(f"  total: {len(all_events)} open hackathons")
 
     bangalore_events = filter_bangalore(all_events)
     print(f"  {len(bangalore_events)} match Bangalore filter")
@@ -27,7 +31,7 @@ def run(*, dry_run: bool = False, max_pages: int | None = None) -> int:
     if dry_run:
         print("\n--- Dry run: would send these alerts ---")
         for event in new_events:
-            print(f"  • {event.title}")
+            print(f"  • [{event.platform}] {event.title}")
             print(f"    {event.registration_url}")
         return 0
 
@@ -55,6 +59,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
+        print("Fetching hackathons from all platforms...")
         run(dry_run=args.dry_run, max_pages=args.max_pages)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)

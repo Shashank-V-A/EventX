@@ -1,5 +1,6 @@
 .env
 logs/
+docs/index.html
 __pycache__/
 *.py[cod]
 .venv/

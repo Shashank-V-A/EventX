@@ -56,27 +56,6 @@ Send alerts:
 python main.py
 ```
 
-## Dashboard
-
-View all Bangalore hackathons grouped by platform with one-click registration links.
-
-### Local
-
-```bash
-python dashboard.py --serve
-```
-
-Opens `http://localhost:8080` in your browser. Regenerates data live from all platforms each time you run it.
-
-### Online (GitHub Pages)
-
-The GitHub Actions workflow auto-generates and deploys the dashboard to the `gh-pages` branch on every run.
-
-1. Go to **Settings → Pages** in your repo
-2. Set **Source** to **Deploy from a branch**
-3. Choose branch **`gh-pages`** and folder **`/ (root)`**
-4. Your dashboard will be at: `https://shashank-v-a.github.io/EventX/`
-
 ## Schedule it (GitHub Actions — every 6 hours)
 
 EventX runs automatically via [GitHub Actions](https://github.com/Shashank-V-A/EventX/actions) — no need to keep your PC on.
@@ -152,4 +131,3 @@ EventX/
 
 - Add LabLab.ai / Luma when reliable access is available
 - Add filters for online / AI hackathons only
-- Simple web dashboard to browse seen events

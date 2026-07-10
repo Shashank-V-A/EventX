@@ -4,11 +4,17 @@ import sys
 from eventx.fetchers import fetch_all_hackathons
 from eventx.filter import filter_bangalore
 from eventx.notifier.telegram import notify_events
-from eventx.storage import get_new_events, init_db, mark_notified
+from eventx.storage import count_seen, get_new_events, init_db, mark_notified
 
 
-def run(*, dry_run: bool = False, max_pages: int | None = None) -> int:
+def run(
+    *,
+    dry_run: bool = False,
+    mark_seen: bool = False,
+    max_pages: int | None = None,
+) -> int:
     init_db()
+    print(f"  Seen events in database: {count_seen()}")
 
     by_platform = fetch_all_hackathons(max_pages=max_pages)
     all_events = []
@@ -35,9 +41,16 @@ def run(*, dry_run: bool = False, max_pages: int | None = None) -> int:
             print(f"    {event.registration_url}")
         return 0
 
+    if mark_seen:
+        mark_notified(new_events)
+        print(f"Marked {len(new_events)} event(s) as seen (no Telegram messages).")
+        print(f"  Seen events in database: {count_seen()}")
+        return 0
+
     sent = notify_events(new_events)
     mark_notified(new_events)
     print(f"Sent {sent} Telegram alert(s).")
+    print(f"  Seen events in database: {count_seen()}")
     return sent
 
 
@@ -51,6 +64,11 @@ def main() -> None:
         help="Fetch and filter without sending Telegram messages",
     )
     parser.add_argument(
+        "--mark-seen",
+        action="store_true",
+        help="Mark current Bangalore hackathons as seen without sending alerts",
+    )
+    parser.add_argument(
         "--max-pages",
         type=int,
         default=None,
@@ -60,7 +78,11 @@ def main() -> None:
 
     try:
         print("Fetching hackathons from all platforms...")
-        run(dry_run=args.dry_run, max_pages=args.max_pages)
+        run(
+            dry_run=args.dry_run,
+            mark_seen=args.mark_seen,
+            max_pages=args.max_pages,
+        )
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)

@@ -74,9 +74,7 @@ EventX runs automatically via [GitHub Actions](https://github.com/Shashank-V-A/E
 
 3. **Test manually** — select **EventX Alerts** → **Run workflow** → **Run workflow**.
 
-After that, it runs every 6 hours on GitHub's servers. Seen events are stored in Actions cache so you won't get duplicate alerts.
-
-> **Note:** If you already ran EventX locally first, the initial GitHub run may resend alerts for hackathons you've already seen (GitHub starts with an empty cache). After that first run, only new hackathons are sent.
+After that, it runs every 6 hours on GitHub's servers. Each hackathon is notified **only once** — seen events are saved in `data/events.db` and committed back to the repo after every run.
 
 ### Local run (optional)
 

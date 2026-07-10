@@ -1,4 +1,3 @@
-import re
 import sqlite3
 from datetime import datetime
 
@@ -26,6 +25,12 @@ def init_db() -> None:
             )
             """
         )
+
+
+def count_seen() -> int:
+    with _connect() as conn:
+        row = conn.execute("SELECT COUNT(*) AS n FROM seen_events").fetchone()
+        return int(row["n"]) if row else 0
 
 
 def get_new_events(events: list[HackathonEvent]) -> list[HackathonEvent]:
@@ -61,3 +66,4 @@ def mark_notified(events: list[HackathonEvent]) -> None:
                 for e in events
             ],
         )
+        conn.commit()

@@ -10,6 +10,9 @@ concurrency:
   group: eventx-alerts
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   alert:
     runs-on: ubuntu-latest
@@ -21,12 +24,15 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Restore seen-events database
+      # Cache is a backup. Unique key each run so updates are saved
+      # (GitHub cache keys are immutable — a fixed key never updates).
+      - name: Restore seen-events database cache
         uses: actions/cache@v4
         with:
           path: data/events.db
-          key: eventx-seen-events
-          restore-keys: eventx-seen-events
+          key: eventx-seen-events-${{ github.run_id }}
+          restore-keys: |
+            eventx-seen-events-
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -38,3 +44,17 @@ jobs:
           UNSTOP_MAX_PAGES: "10"
           INCLUDE_ONLINE: "false"
         run: python main.py
+
+      # Primary persistence: commit updated DB so the next run
+      # checks out the full seen list and never re-alerts.
+      - name: Persist seen-events database
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/events.db
+          if git diff --staged --quiet; then
+            echo "No database changes to commit."
+          else
+            git commit -m "chore: update seen-events database [skip ci]"
+            git push
+          fi

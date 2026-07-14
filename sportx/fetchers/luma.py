@@ -41,7 +41,62 @@ def _location_from_geo(geo: object) -> str | None:
     return None
 
 
-def _from_luma_dict(item: dict) -> SportEvent | None:
+_ORG_HINTS = (
+    "club",
+    "venture",
+    "lab",
+    "labs",
+    "foundation",
+    "dialogues",
+    "community",
+    "collective",
+    "studio",
+    "hq",
+    "inc",
+    "ltd",
+    "university",
+    "institute",
+    "academy",
+    "society",
+    "capital",
+    "partners",
+)
+
+
+def _organisation_from_hosts_and_calendar(
+    hosts: object,
+    calendar: object,
+) -> str | None:
+    names: list[str] = []
+    if isinstance(hosts, list):
+        for host in hosts:
+            if not isinstance(host, dict):
+                continue
+            name = (host.get("name") or "").strip()
+            if name:
+                names.append(name)
+
+    orgish = [
+        n
+        for n in names
+        if any(h in n.lower() for h in _ORG_HINTS) or (" " not in n and len(n) > 3)
+    ]
+    picked = orgish[:3] if orgish else names[:3]
+    if picked:
+        return ", ".join(picked)
+
+    if isinstance(calendar, dict):
+        cal_name = (calendar.get("name") or "").strip()
+        if cal_name:
+            return cal_name
+    return None
+
+
+def _from_luma_dict(
+    item: dict,
+    *,
+    organisation: str | None = None,
+) -> SportEvent | None:
     title = (item.get("name") or item.get("title") or "").strip()
     if not title:
         return None
@@ -70,6 +125,11 @@ def _from_luma_dict(item: dict) -> SportEvent | None:
     if not is_sports_event(title, hints):
         return None
 
+    if not organisation:
+        organisation = _organisation_from_hosts_and_calendar(
+            item.get("hosts"), item.get("calendar")
+        )
+
     event = SportEvent(
         id=str(api_id),
         title=title,
@@ -80,7 +140,7 @@ def _from_luma_dict(item: dict) -> SportEvent | None:
         else "offline",
         location=str(location),
         deadline=parse_datetime(item.get("start_at") or item.get("end_at")),
-        organisation=None,
+        organisation=organisation,
         image_url=image,
         description=None,
     )
@@ -111,10 +171,15 @@ def fetch_luma_sports() -> list[SportEvent]:
             if not isinstance(entries, list):
                 continue
             for entry in entries:
-                raw = entry.get("event") if isinstance(entry, dict) else None
+                if not isinstance(entry, dict):
+                    continue
+                raw = entry.get("event")
                 if not isinstance(raw, dict):
                     continue
-                event = _from_luma_dict(raw)
+                org = _organisation_from_hosts_and_calendar(
+                    entry.get("hosts"), entry.get("calendar")
+                )
+                event = _from_luma_dict(raw, organisation=org)
                 if not event or event.id in seen:
                     continue
                 seen.add(event.id)

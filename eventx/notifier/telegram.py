@@ -34,7 +34,6 @@ def _escape(text: str) -> str:
 
 def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
     location = _escape(event.location or "Not specified")
-    org = _escape(event.organisation or "Unknown")
     platforms = ", ".join(
         PLATFORM_LABELS.get(p, p.title()) for p in (event.platforms or [event.platform])
     )
@@ -55,9 +54,10 @@ def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
         f"🏷️ Type: {_escape(subtype)}",
         f"📍 Location: {location}",
         f"🌐 Mode: {_escape(event.mode)}",
-        f"🏢 Host: {org}",
-        f"📱 Platform: {_escape(platforms)}",
     ]
+    if event.organisation:
+        lines.append(f"🏢 Host: {_escape(event.organisation)}")
+    lines.append(f"📱 Platform: {_escape(platforms)}")
 
     if event.prize_pool:
         lines.append(f"🏆 Prize: {_escape(event.prize_pool)}")

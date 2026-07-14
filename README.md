@@ -42,7 +42,7 @@ Anyone can use the bots:
 | SportX | [@Sportx_va_bot](https://t.me/Sportx_va_bot) |
 
 **Idle “scan done — no new events” messages stay admin-only** (your chat id).  
-A **Subscriber Sync** workflow runs every 15 minutes so `/start` / `/stop` are handled without waiting for the 6-hour scan.
+A **Subscriber Sync** workflow runs about every 5 minutes so `/start` / `/stop` / `/help` are handled without waiting for the 6-hour scan (replies are not instant).
 
 Subscriber chat IDs are stored in GitHub Actions cache only (not committed to the public repo).
 

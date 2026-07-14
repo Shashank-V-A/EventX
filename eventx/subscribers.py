@@ -17,7 +17,7 @@ WELCOME = (
     "You're subscribed to Bangalore hackathon alerts "
     "(software, hardware, buildathons, ideathons, and more).\n\n"
     "You'll get a Telegram message when something new is listed.\n\n"
-    "Commands:\n"
+    "Commands (replies within a few minutes):\n"
     "/start — subscribe\n"
     "/stop — unsubscribe\n"
     "/help — show this message"

@@ -61,7 +61,63 @@ def _location_from_geo(geo: object) -> str | None:
     return None
 
 
-def _event_from_luma_dict(item: dict) -> HackathonEvent | None:
+_ORG_HINTS = (
+    "club",
+    "venture",
+    "lab",
+    "labs",
+    "foundation",
+    "dialogues",
+    "community",
+    "collective",
+    "studio",
+    "hq",
+    "inc",
+    "ltd",
+    "university",
+    "institute",
+    "academy",
+    "society",
+    "capital",
+    "partners",
+)
+
+
+def _organisation_from_hosts_and_calendar(
+    hosts: object,
+    calendar: object,
+) -> str | None:
+    """Build a host label from Luma discover entry fields (siblings of event)."""
+    names: list[str] = []
+    if isinstance(hosts, list):
+        for host in hosts:
+            if not isinstance(host, dict):
+                continue
+            name = (host.get("name") or "").strip()
+            if name:
+                names.append(name)
+
+    orgish = [
+        n
+        for n in names
+        if any(h in n.lower() for h in _ORG_HINTS) or (" " not in n and len(n) > 3)
+    ]
+    picked = orgish[:3] if orgish else names[:3]
+    if picked:
+        return ", ".join(picked)
+
+    if isinstance(calendar, dict):
+        cal_name = (calendar.get("name") or "").strip()
+        if cal_name:
+            return cal_name
+    return None
+
+
+def _event_from_luma_dict(
+    item: dict,
+    *,
+    organisation: str | None = None,
+) -> HackathonEvent | None:
     title = (item.get("name") or item.get("title") or "").strip()
     if not title:
         return None
@@ -83,6 +139,11 @@ def _event_from_luma_dict(item: dict) -> HackathonEvent | None:
     mode = "online" if str(item.get("location_type") or "").lower() == "online" else "offline"
     deadline = parse_datetime(item.get("end_at") or item.get("start_at"))
 
+    if not organisation:
+        organisation = _organisation_from_hosts_and_calendar(
+            item.get("hosts"), item.get("calendar")
+        )
+
     return with_category(
         HackathonEvent(
             id=str(api_id),
@@ -92,7 +153,7 @@ def _event_from_luma_dict(item: dict) -> HackathonEvent | None:
             mode=mode,
             location=str(location),
             deadline=deadline,
-            organisation=None,
+            organisation=organisation,
             eligibility=None,
             prize_pool=None,
             team_size=None,
@@ -106,6 +167,7 @@ def _events_from_discover_payload(payload: dict) -> list[HackathonEvent]:
     seen: set[str] = set()
 
     # City discover pages: props.pageProps.initialData.data.events[].event
+    # Hosts/calendar live on the entry, not inside event.
     entries = (
         ((payload.get("props") or {}).get("pageProps") or {})
         .get("initialData", {})
@@ -114,10 +176,15 @@ def _events_from_discover_payload(payload: dict) -> list[HackathonEvent]:
     )
     if isinstance(entries, list):
         for entry in entries:
-            raw = entry.get("event") if isinstance(entry, dict) else None
+            if not isinstance(entry, dict):
+                continue
+            raw = entry.get("event")
             if not isinstance(raw, dict):
                 continue
-            event = _event_from_luma_dict(raw)
+            org = _organisation_from_hosts_and_calendar(
+                entry.get("hosts"), entry.get("calendar")
+            )
+            event = _event_from_luma_dict(raw, organisation=org)
             if event and event.id not in seen:
                 seen.add(event.id)
                 events.append(event)
@@ -145,13 +212,17 @@ def _events_from_discover_payload(payload: dict) -> list[HackathonEvent]:
 def _parse_event_page(url: str, html: str) -> HackathonEvent | None:
     payload = _load_next_data(html)
     if payload:
+        page_props = ((payload.get("props") or {}).get("pageProps") or {})
         # Single event pages sometimes nest under pageProps.event
-        page_event = ((payload.get("props") or {}).get("pageProps") or {}).get("event")
+        page_event = page_props.get("event")
         if isinstance(page_event, dict):
-            event = _event_from_luma_dict(page_event)
+            org = _organisation_from_hosts_and_calendar(
+                page_props.get("hosts") or page_event.get("hosts"),
+                page_props.get("calendar") or page_event.get("calendar"),
+            )
+            event = _event_from_luma_dict(page_event, organisation=org)
             if event:
                 return event
-
     title = None
     description = ""
     start = None

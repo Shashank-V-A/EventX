@@ -1,0 +1,20 @@
+# Prefer ASGI FastAPI app; ignore per-file handlers under api/
+api/
+# GitHub Actions scanners — not Vercel Functions
+main.py
+sportx_main.py
+sync_subscribers.py
+
+# Local / CI only
+.venv/
+venv/
+data/
+.github/
+scripts/
+*.db
+.env
+.env.local
+.git/
+__pycache__/
+*.pyc
+logs/

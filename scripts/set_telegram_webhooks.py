@@ -28,7 +28,7 @@ def set_webhook(token: str, url: str, secret: str, name: str) -> None:
     data = response.json()
     if not data.get("ok"):
         raise SystemExit(f"{name} setWebhook failed: {data}")
-    print(f"{name}: webhook set → {url}")
+    print(f"{name}: webhook set -> {url}")
 
 
 def delete_webhook(token: str, name: str) -> None:

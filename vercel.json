@@ -1,11 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/hackathonx.py": {
-      "maxDuration": 10
-    },
-    "api/sportx.py": {
-      "maxDuration": 10
+    "app.py": {
+      "maxDuration": 15
     }
   }
 }

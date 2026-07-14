@@ -122,3 +122,10 @@ def notify_health_alerts(alerts: list[tuple[str, int, str]]) -> int:
         send_telegram_message(format_health_alert(platform, failures, error))
         sent += 1
     return sent
+
+
+def notify_scan_idle() -> None:
+    """Heartbeat when a scan finished with no new hackathon alerts."""
+    send_telegram_message(
+        "✅ <b>HackathonX</b>\nScan done — no new events found."
+    )

@@ -4,7 +4,11 @@ import sys
 from eventx.dedupe import merge_duplicate_events
 from eventx.fetchers import fetch_all_hackathons
 from eventx.filter import filter_bangalore, filter_hackathons
-from eventx.notifier.telegram import notify_events, notify_health_alerts
+from eventx.notifier.telegram import (
+    notify_events,
+    notify_health_alerts,
+    notify_scan_idle,
+)
 from eventx.storage import (
     count_seen,
     get_due_reminders,
@@ -77,7 +81,9 @@ def run(
             for platform, failures, error in health:
                 print(f"  • {platform} failed {failures}x: {error[:120]}")
         if not new_events and not reminders and not health:
-            print("Nothing new to send.")
+            print("Nothing new to send (would send idle heartbeat).")
+        elif not new_events:
+            print("\n--- Dry run: would send idle heartbeat (no new events) ---")
         return 0
 
     if mark_seen:
@@ -92,6 +98,10 @@ def run(
         sent += notify_events(new_events)
         mark_notified(new_events)
         print(f"Sent {len(new_events)} new hackathon alert(s).")
+    else:
+        notify_scan_idle()
+        sent += 1
+        print("Sent idle scan heartbeat (no new events).")
 
     for event, kind in reminders:
         notify_events([event], kind=kind)
@@ -106,8 +116,6 @@ def run(
         sent += len(health)
         print(f"Sent {len(health)} health alert(s).")
 
-    if sent == 0:
-        print("Nothing new to send.")
     print(f"  Seen events in database: {count_seen()}")
     return sent
 

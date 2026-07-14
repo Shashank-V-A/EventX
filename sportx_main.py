@@ -7,7 +7,11 @@ from sportx.dedupe import merge_duplicate_events
 from sportx.fetchers import collect_all
 from sportx.filter import filter_events
 from sportx.models import SportEvent
-from sportx.notifier.telegram import notify_events, notify_health_alerts
+from sportx.notifier.telegram import (
+    notify_events,
+    notify_health_alerts,
+    notify_scan_idle,
+)
 from sportx.storage import EventStore
 
 
@@ -90,7 +94,9 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
             for platform, failures, error in health:
                 print(f"  • {platform} failed {failures}x: {error[:120]}")
         if not new_events and not reminders and not health:
-            print("Nothing new to send.")
+            print("Nothing new to send (would send idle heartbeat).")
+        elif not new_events:
+            print("\n--- Dry run: would send idle heartbeat (no new events) ---")
         return 0
 
     if mark_seen:
@@ -103,6 +109,10 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
         sent += notify_events(new_events)
         store.mark_many_seen(new_events)
         print(f"Sent {len(new_events)} new sports alert(s).")
+    else:
+        notify_scan_idle()
+        sent += 1
+        print("Sent idle scan heartbeat (no new events).")
 
     for event, kind, fingerprint in reminders:
         notify_events([event], kind=kind)
@@ -116,8 +126,6 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
         sent += len(health)
         print(f"Sent {len(health)} health alert(s).")
 
-    if sent == 0:
-        print("Nothing new to send.")
     return sent
 
 

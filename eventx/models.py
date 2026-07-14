@@ -6,6 +6,8 @@ from datetime import datetime
 
 @dataclass
 class HackathonEvent:
+    """A Bangalore-local opportunity/event (hackathon, seminar, meetup, etc.)."""
+
     id: str
     title: str
     platform: str
@@ -17,6 +19,7 @@ class HackathonEvent:
     prize_pool: str | None = None
     team_size: str | None = None
     eligibility: str | None = None
+    category: str = "event"
     platforms: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -29,7 +32,6 @@ class HackathonEvent:
 
     @property
     def fingerprint(self) -> str:
-        """Cross-platform identity for the same hackathon."""
         from eventx.dedupe import event_fingerprint
 
         return event_fingerprint(self)

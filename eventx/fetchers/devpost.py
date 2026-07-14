@@ -2,6 +2,7 @@ from datetime import datetime
 
 import httpx
 
+from eventx.category import with_category
 from eventx.fetchers._common import USER_AGENT, strip_html
 from eventx.models import HackathonEvent
 
@@ -63,17 +64,20 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
     themes = item.get("themes") or []
     theme_names = ", ".join(t.get("name") for t in themes[:3] if t.get("name"))
 
-    return HackathonEvent(
-        id=str(event_id),
-        title=title,
-        platform="devpost",
-        registration_url=url,
-        mode=mode,
-        location=location,
-        deadline=_parse_end_date(item.get("submission_period_dates")),
-        organisation=item.get("organization_name"),
-        prize_pool=_format_prize(item),
-        eligibility=theme_names or None,
+    return with_category(
+        HackathonEvent(
+            id=str(event_id),
+            title=title,
+            platform="devpost",
+            registration_url=url,
+            mode=mode,
+            location=location,
+            deadline=_parse_end_date(item.get("submission_period_dates")),
+            organisation=item.get("organization_name"),
+            prize_pool=_format_prize(item),
+            eligibility=theme_names or None,
+            category="hackathon",
+        )
     )
 
 

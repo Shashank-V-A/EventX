@@ -2,6 +2,7 @@ import re
 
 import httpx
 
+from eventx.category import with_category
 from eventx.fetchers._common import USER_AGENT
 from eventx.models import HackathonEvent
 
@@ -30,15 +31,18 @@ def fetch_hackerearth_hackathons() -> list[HackathonEvent]:
 
         title = match.group("title").strip()
         events.append(
-            HackathonEvent(
-                id=slug,
-                title=title,
-                platform="hackerearth",
-                registration_url=f"https://www.hackerearth.com/challenges/hackathon/{slug}/",
-                mode="online",
-                location="Online",
-                deadline=None,
-                organisation="HackerEarth",
+            with_category(
+                HackathonEvent(
+                    id=slug,
+                    title=title,
+                    platform="hackerearth",
+                    registration_url=f"https://www.hackerearth.com/challenges/hackathon/{slug}/",
+                    mode="online",
+                    location="Online",
+                    deadline=None,
+                    organisation="HackerEarth",
+                    category="hackathon",
+                )
             )
         )
 

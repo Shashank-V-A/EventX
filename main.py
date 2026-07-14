@@ -29,12 +29,12 @@ def run(
     by_platform, failed = fetch_all_hackathons(max_pages=max_pages)
     all_events = []
     for platform, events in by_platform.items():
-        print(f"  {platform}: {len(events)} open hackathons")
+        print(f"  {platform}: {len(events)} open listings")
         all_events.extend(events)
     if failed:
-        print(f"  failed platforms: {', '.join(failed)}")
+        print(f"  failed sources: {', '.join(failed)}")
 
-    print(f"  total: {len(all_events)} open hackathons")
+    print(f"  total: {len(all_events)} open listings")
 
     bangalore_events = filter_bangalore(all_events)
     print(f"  {len(bangalore_events)} match Bangalore filter")
@@ -58,17 +58,13 @@ def run(
             print("\n--- Dry run: would send these alerts ---")
             for event in new_events:
                 platforms = ",".join(event.platforms)
-                print(f"  • [{platforms}] {event.title}")
-                print(f"    {event.registration_url}")
-                extras = []
-                if event.prize_pool:
-                    extras.append(f"prize={event.prize_pool}")
-                if event.team_size:
-                    extras.append(f"team={event.team_size}")
-                if event.eligibility:
-                    extras.append(f"elig={event.eligibility}")
-                if extras:
-                    print(f"    {' | '.join(extras)}")
+                line = f"  • [{platforms}] {event.category}: {event.title}"
+                try:
+                    print(line)
+                    print(f"    {event.registration_url}")
+                except UnicodeEncodeError:
+                    print(line.encode("ascii", "replace").decode())
+                    print(f"    {event.registration_url}")
         if reminders:
             print("\n--- Dry run: deadline reminders ---")
             for event, kind in reminders:
@@ -92,7 +88,7 @@ def run(
     if new_events:
         sent += notify_events(new_events)
         mark_notified(new_events)
-        print(f"Sent {len(new_events)} new hackathon alert(s).")
+        print(f"Sent {len(new_events)} new event alert(s).")
 
     for event, kind in reminders:
         notify_events([event], kind=kind)
@@ -115,7 +111,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="EventX — get Bangalore hackathon alerts on Telegram"
+        description="EventX — Bangalore events, hackathons, meetups & more on Telegram"
     )
     parser.add_argument(
         "--dry-run",
@@ -136,7 +132,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        print("Fetching hackathons from all platforms...")
+        print("Fetching Bangalore events from all sources...")
         run(
             dry_run=args.dry_run,
             mark_seen=args.mark_seen,

@@ -2,6 +2,7 @@ from datetime import datetime
 
 import httpx
 
+from eventx.category import with_category
 from eventx.fetchers._common import USER_AGENT, parse_datetime
 from eventx.models import HackathonEvent
 
@@ -40,18 +41,21 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
     ticket = item.get("ticket")
     eligibility = f"{ticket} entry" if ticket else None
 
-    return HackathonEvent(
-        id=event_id,
-        title=item.get("title", "Untitled"),
-        platform="hack2skill",
-        registration_url=f"https://hack2skill.com/event/{event_url}",
-        mode=mode,
-        location=location,
-        deadline=parse_datetime(item.get("registrationEnd") or item.get("submissionEnd")),
-        organisation=None,
-        team_size=team_size,
-        eligibility=eligibility,
-        prize_pool=None,
+    return with_category(
+        HackathonEvent(
+            id=event_id,
+            title=item.get("title", "Untitled"),
+            platform="hack2skill",
+            registration_url=f"https://hack2skill.com/event/{event_url}",
+            mode=mode,
+            location=location,
+            deadline=parse_datetime(item.get("registrationEnd") or item.get("submissionEnd")),
+            organisation=None,
+            team_size=team_size,
+            eligibility=eligibility,
+            prize_pool=None,
+            category="hackathon",
+        )
     )
 
 

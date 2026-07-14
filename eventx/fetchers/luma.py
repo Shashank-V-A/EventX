@@ -14,6 +14,7 @@ import re
 
 import httpx
 
+from eventx.category import with_category
 from eventx.fetchers._common import USER_AGENT, parse_datetime
 from eventx.models import HackathonEvent
 
@@ -64,18 +65,21 @@ def _parse_event_page(url: str, html: str) -> HackathonEvent | None:
     mode = "online" if "online" in blob and "bengaluru" not in blob else "offline"
     event_id = url.rstrip("/").split("/")[-1]
 
-    return HackathonEvent(
-        id=event_id,
-        title=title.replace(" · Luma", "").strip(),
-        platform="luma",
-        registration_url=url,
-        mode=mode,
-        location=location or "Bangalore",
-        deadline=parse_datetime(start) if isinstance(start, str) else None,
-        organisation=None,
-        eligibility=None,
-        prize_pool=None,
-        team_size=None,
+    return with_category(
+        HackathonEvent(
+            id=event_id,
+            title=title.replace(" · Luma", "").strip(),
+            platform="luma",
+            registration_url=url,
+            mode=mode,
+            location=location or "Bangalore",
+            deadline=parse_datetime(start) if isinstance(start, str) else None,
+            organisation=None,
+            eligibility=None,
+            prize_pool=None,
+            team_size=None,
+            category="event",
+        )
     )
 
 

@@ -1,5 +1,6 @@
 import httpx
 
+from eventx.category import category_label
 from eventx.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from eventx.models import HackathonEvent
 
@@ -14,6 +15,8 @@ PLATFORM_LABELS = {
     "dorahacks": "DoraHacks",
     "mlh": "MLH",
     "luma": "Luma",
+    "meetup": "Meetup",
+    "allevents": "AllEvents",
 }
 
 
@@ -40,23 +43,25 @@ def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
     platforms = ", ".join(
         PLATFORM_LABELS.get(p, p.title()) for p in (event.platforms or [event.platform])
     )
+    category = category_label(event.category or "event")
 
     if kind == "24h":
-        header = "⏰ <b>Deadline in 24 hours — Bangalore</b>"
+        header = "⏰ <b>Starting / closing in 24 hours — Bangalore</b>"
     elif kind == "48h":
-        header = "⏰ <b>Deadline in 48 hours — Bangalore</b>"
+        header = "⏰ <b>Starting / closing in 48 hours — Bangalore</b>"
     else:
-        header = "🚀 <b>New Hackathon — Bangalore</b>"
+        header = f"✨ <b>New {category} — Bangalore</b>"
 
     lines = [
         header,
         "",
         f"<b>{_escape(event.title)}</b>",
         "",
+        f"🏷️ Type: {_escape(category)}",
         f"📍 Location: {location}",
         f"🌐 Mode: {_escape(event.mode)}",
         f"🏢 Host: {org}",
-        f"📱 Platform: {_escape(platforms)}",
+        f"📱 Source: {_escape(platforms)}",
     ]
 
     if event.prize_pool:
@@ -68,8 +73,8 @@ def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
 
     lines.extend(
         [
-            f"⏰ Registration closes: {_escape(_format_deadline(event))}",
-            f'🔗 <a href="{event.registration_url}">Register now</a>',
+            f"⏰ Date / deadline: {_escape(_format_deadline(event))}",
+            f'🔗 <a href="{event.registration_url}">Register / details</a>',
         ]
     )
     return "\n".join(lines)
@@ -79,7 +84,7 @@ def format_health_alert(platform: str, failures: int, error: str) -> str:
     label = PLATFORM_LABELS.get(platform, platform.title())
     return (
         f"⚠️ <b>EventX health check</b>\n\n"
-        f"Platform <b>{_escape(label)}</b> failed {failures} runs in a row.\n"
+        f"Source <b>{_escape(label)}</b> failed {failures} runs in a row.\n"
         f"Last error: {_escape(error[:300]) or 'unknown'}\n\n"
         f"New alerts from this source may be missing until it recovers."
     )

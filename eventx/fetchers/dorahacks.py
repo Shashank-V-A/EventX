@@ -2,6 +2,7 @@ from datetime import datetime
 
 import httpx
 
+from eventx.category import with_category
 from eventx.fetchers._common import USER_AGENT
 from eventx.models import HackathonEvent
 
@@ -26,18 +27,21 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
     token = item.get("token") or "USD"
     prize_pool = f"{amount} {token}" if amount else None
 
-    return HackathonEvent(
-        id=uname,
-        title=title,
-        platform="dorahacks",
-        registration_url=f"https://dorahacks.io/hackathon/{uname}/detail",
-        mode=mode,
-        location=location,
-        deadline=deadline,
-        organisation=item.get("organizer_name"),
-        prize_pool=prize_pool,
-        team_size=None,
-        eligibility=None,
+    return with_category(
+        HackathonEvent(
+            id=uname,
+            title=title,
+            platform="dorahacks",
+            registration_url=f"https://dorahacks.io/hackathon/{uname}/detail",
+            mode=mode,
+            location=location,
+            deadline=deadline,
+            organisation=item.get("organizer_name"),
+            prize_pool=prize_pool,
+            team_size=None,
+            eligibility=None,
+            category="hackathon",
+        )
     )
 
 

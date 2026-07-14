@@ -1,5 +1,6 @@
 import httpx
 
+from eventx.category import with_category
 from eventx.fetchers._common import USER_AGENT, format_team_size, parse_datetime
 from eventx.models import HackathonEvent
 
@@ -14,17 +15,20 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
     location = item.get("location") or ("Online" if item.get("is_online") else None)
     mode = "online" if item.get("is_online") else "offline"
 
-    return HackathonEvent(
-        id=slug,
-        title=item.get("name", "Untitled"),
-        platform="devfolio",
-        registration_url=f"https://{slug}.devfolio.co/application",
-        mode=mode,
-        location=location,
-        deadline=parse_datetime(item.get("ends_at") or item.get("reg_ends_at")),
-        organisation=item.get("organizer_name"),
-        team_size=format_team_size(item.get("team_min"), item.get("team_size")),
-        eligibility="Open to all" if item.get("is_online") is not None else None,
+    return with_category(
+        HackathonEvent(
+            id=slug,
+            title=item.get("name", "Untitled"),
+            platform="devfolio",
+            registration_url=f"https://{slug}.devfolio.co/application",
+            mode=mode,
+            location=location,
+            deadline=parse_datetime(item.get("ends_at") or item.get("reg_ends_at")),
+            organisation=item.get("organizer_name"),
+            team_size=format_team_size(item.get("team_min"), item.get("team_size")),
+            eligibility="Open to all" if item.get("is_online") is not None else None,
+            category="hackathon",
+        )
     )
 
 

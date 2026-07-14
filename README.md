@@ -1,8 +1,8 @@
 # EventX
 
-Get Bangalore hackathon registration links delivered to your Telegram — with rich details, deadline reminders, and no duplicate spam.
+Bangalore event radar for Telegram — hackathons, workshops, meetups, seminars, marathons, concerts, competitions, and more.
 
-**Platforms:** Unstop, Devfolio, Devpost, HackerEarth, Hack2Skill, DoraHacks, MLH (+ optional Luma URLs)
+**Sources:** Unstop · Devfolio · Devpost · Meetup · AllEvents · MLH · HackerEarth · Hack2Skill · DoraHacks · optional Luma URLs
 
 ## Setup
 
@@ -17,109 +17,77 @@ pip install -r requirements.txt
 
 ### 2. Create a Telegram bot
 
-1. Open Telegram and message [@BotFather](https://t.me/BotFather)
-2. Send `/newbot` and follow the prompts
-3. Copy the bot token
+1. Message [@BotFather](https://t.me/BotFather) → `/newbot`
+2. Copy the bot token
 
 ### 3. Get your chat ID
 
-1. Message your new bot (send anything, e.g. `hi`)
-2. Visit: `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
-3. Find `"chat":{"id":123456789}` — that number is your chat ID
+1. Message your bot (`hi`)
+2. Open `https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates`
+3. Copy `"chat":{"id": ...}`
 
-### 4. Configure environment
+### 4. Configure `.env`
 
 ```bash
 copy .env.example .env
 ```
 
-Edit `.env`:
-
 ```
-TELEGRAM_BOT_TOKEN=123456:ABC...
-TELEGRAM_CHAT_ID=987654321
-UNSTOP_MAX_PAGES=10
+TELEGRAM_BOT_TOKEN=...
+TELEGRAM_CHAT_ID=...
+UNSTOP_MAX_PAGES=5
+UNSTOP_TYPES=hackathons,competitions,quizzes,conferences,workshops
 INCLUDE_ONLINE=false
-# Optional: watch specific public Luma events
-# LUMA_EVENT_URLS=https://lu.ma/your-bangalore-event
+# Optional curated Luma links:
+# LUMA_EVENT_URLS=https://lu.ma/some-bangalore-event
 ```
 
 ### 5. Run
 
-Dry run (no messages sent):
-
 ```bash
 python main.py --dry-run
-```
-
-Send alerts:
-
-```bash
 python main.py
 ```
 
-## Schedule it (GitHub Actions — every 6 hours)
+## What you get
 
-EventX runs automatically via [GitHub Actions](https://github.com/Shashank-V-A/EventX/actions) — no need to keep your PC on.
+Every ~6 hours (GitHub Actions), EventX:
 
-### One-time setup
+1. Scans tech + city event platforms
+2. Keeps Bangalore / Bengaluru listings
+3. Dedupes the same event across platforms
+4. Sends **one** Telegram alert per new event (with type: meetup, hackathon, music, etc.)
+5. Reminds you at **48h** and **24h** before the date/deadline
+6. Warns you if a source fails twice in a row
 
-1. **Add repository secrets** at  
-   [github.com/Shashank-V-A/EventX/settings/secrets/actions](https://github.com/Shashank-V-A/EventX/settings/secrets/actions)
+## GitHub Actions
 
-   | Secret name | Value |
-   |-------------|-------|
-   | `TELEGRAM_BOT_TOKEN` | Your bot token from @BotFather |
-   | `TELEGRAM_CHAT_ID` | Your Telegram chat ID |
+1. Add secrets `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
+2. Run **EventX Alerts** from the Actions tab
 
-2. **Enable workflows** — open the [Actions tab](https://github.com/Shashank-V-A/EventX/actions), click **I understand my workflows, go ahead and enable them** if prompted.
+Seen events persist in `data/events.db` (committed after each run).
 
-3. **Test manually** — select **EventX Alerts** → **Run workflow** → **Run workflow**.
+## Sources
 
-Each hackathon is notified **only once**. Seen events are saved in `data/events.db` and committed back to the repo after every run.
+| Source | What it usually catches |
+|--------|-------------------------|
+| Unstop | Hackathons, competitions, quizzes, workshops, conferences |
+| Devfolio / Devpost / MLH | Hackathons & buildathons |
+| Meetup | Tech talks, workshops, community meetups |
+| AllEvents | City events — music, sports, festivals, local happenings |
+| HackerEarth / Hack2Skill / DoraHacks | More hackathons & challenges |
+| Luma | Only URLs you add in `LUMA_EVENT_URLS` |
 
-## Features
-
-- **Richer alerts** — prize pool, team size, and eligibility when platforms expose them
-- **Cross-platform dedupe** — same event on Unstop + Devfolio → one Telegram message
-- **Deadline reminders** — extra ping at ~48h and ~24h before registration closes
-- **Health checks** — Telegram warning if a platform fails 2 runs in a row
-- **MLH** — student hackathons including Bengaluru venues
-- **Luma workaround** — watch specific public event URLs via `LUMA_EVENT_URLS`
-
-## How it works
-
-1. Fetches open hackathons from all configured sources
-2. Filters for Bangalore / Bengaluru
-3. Merges duplicates across platforms
-4. Sends new alerts + due deadline reminders
-5. Alerts you if a source keeps failing
-
-### Platform notes
-
-| Platform | Method | Notes |
-|----------|--------|-------|
-| Unstop | Public API | Best India coverage; prizes/team/eligibility |
-| Devfolio | Public API | Strong city + team size fields |
-| Devpost | Public API | Prize totals when listed |
-| HackerEarth | HTML listing | Mostly online |
-| Hack2Skill | Public API | Indian events |
-| DoraHacks | Public API | Prize when listed |
-| MLH | Season page JSON | Bengaluru student hacks |
-| Luma | Curated URLs | No global discover API |
-| LabLab.ai | — | Blocked by Cloudflare |
-
-## Project structure
+## Project layout
 
 ```
 EventX/
 ├── main.py
-├── eventx/
-│   ├── fetchers/          # one module per platform
-│   ├── dedupe.py          # cross-platform merge
-│   ├── filter.py
-│   ├── notifier/telegram.py
-│   ├── storage.py         # seen events + reminders + health
-│   └── models.py
-└── data/events.db
+└── eventx/
+    ├── fetchers/     # one module per source
+    ├── category.py   # hackathon / meetup / marathon / ...
+    ├── dedupe.py
+    ├── filter.py
+    ├── notifier/
+    └── storage.py
 ```

@@ -4,6 +4,7 @@ import json
 
 import httpx
 
+from eventx.category import with_category
 from eventx.fetchers._common import USER_AGENT, parse_datetime
 from eventx.models import HackathonEvent
 
@@ -68,18 +69,21 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
     if not registration_url:
         return None
 
-    return HackathonEvent(
-        id=str(event_id),
-        title=title,
-        platform="mlh",
-        registration_url=registration_url,
-        mode=mode,
-        location=location,
-        deadline=parse_datetime(item.get("endsAt") or item.get("ends_at")),
-        organisation="Major League Hacking",
-        eligibility="Students (MLH)",
-        prize_pool=None,
-        team_size=None,
+    return with_category(
+        HackathonEvent(
+            id=str(event_id),
+            title=title,
+            platform="mlh",
+            registration_url=registration_url,
+            mode=mode,
+            location=location,
+            deadline=parse_datetime(item.get("endsAt") or item.get("ends_at")),
+            organisation="Major League Hacking",
+            eligibility="Students (MLH)",
+            prize_pool=None,
+            team_size=None,
+            category="hackathon",
+        )
     )
 
 

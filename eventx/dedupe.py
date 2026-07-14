@@ -39,6 +39,10 @@ _AGGREGATOR_HOSTS = {
     "www.mlh.io",
     "lu.ma",
     "luma.com",
+    "meetup.com",
+    "www.meetup.com",
+    "allevents.in",
+    "www.allevents.in",
 }
 
 
@@ -115,7 +119,18 @@ def merge_duplicate_events(events: list[HackathonEvent]) -> list[HackathonEvent]
 
 
 def _pick_primary(group: list[HackathonEvent]) -> HackathonEvent:
-    prefer = ("unstop", "devfolio", "devpost", "mlh", "hack2skill", "hackerearth", "dorahacks", "luma")
+    prefer = (
+        "unstop",
+        "devfolio",
+        "meetup",
+        "allevents",
+        "devpost",
+        "mlh",
+        "hack2skill",
+        "hackerearth",
+        "dorahacks",
+        "luma",
+    )
     ranked = sorted(
         group,
         key=lambda e: (

@@ -3,7 +3,7 @@ import sys
 
 from eventx.dedupe import merge_duplicate_events
 from eventx.fetchers import fetch_all_hackathons
-from eventx.filter import filter_bangalore
+from eventx.filter import filter_bangalore, filter_hackathons
 from eventx.notifier.telegram import notify_events, notify_health_alerts
 from eventx.storage import (
     count_seen,
@@ -29,7 +29,7 @@ def run(
     by_platform, failed = fetch_all_hackathons(max_pages=max_pages)
     all_events = []
     for platform, events in by_platform.items():
-        print(f"  {platform}: {len(events)} open listings")
+        print(f"  {platform}: {len(events)} open hackathons")
         all_events.extend(events)
     if failed:
         print(f"  failed sources: {', '.join(failed)}")
@@ -39,7 +39,10 @@ def run(
     bangalore_events = filter_bangalore(all_events)
     print(f"  {len(bangalore_events)} match Bangalore filter")
 
-    deduped = merge_duplicate_events(bangalore_events)
+    hackathons = filter_hackathons(bangalore_events)
+    print(f"  {len(hackathons)} match hackathon filter")
+
+    deduped = merge_duplicate_events(hackathons)
     print(f"  {len(deduped)} after cross-platform dedupe")
 
     new_events = get_new_events(deduped)
@@ -88,7 +91,7 @@ def run(
     if new_events:
         sent += notify_events(new_events)
         mark_notified(new_events)
-        print(f"Sent {len(new_events)} new event alert(s).")
+        print(f"Sent {len(new_events)} new hackathon alert(s).")
 
     for event, kind in reminders:
         notify_events([event], kind=kind)
@@ -111,7 +114,7 @@ def run(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="EventX — Bangalore events, hackathons, meetups & more on Telegram"
+        description="HackathonX — Bangalore hackathons, buildathons & ideathons on Telegram"
     )
     parser.add_argument(
         "--dry-run",
@@ -132,7 +135,7 @@ def main() -> None:
     args = parser.parse_args()
 
     try:
-        print("Fetching Bangalore events from all sources...")
+        print("Fetching Bangalore hackathons (HackathonX)...")
         run(
             dry_run=args.dry_run,
             mark_seen=args.mark_seen,

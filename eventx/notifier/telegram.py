@@ -15,8 +15,6 @@ PLATFORM_LABELS = {
     "dorahacks": "DoraHacks",
     "mlh": "MLH",
     "luma": "Luma",
-    "meetup": "Meetup",
-    "allevents": "AllEvents",
 }
 
 
@@ -43,25 +41,25 @@ def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
     platforms = ", ".join(
         PLATFORM_LABELS.get(p, p.title()) for p in (event.platforms or [event.platform])
     )
-    category = category_label(event.category or "event")
+    subtype = category_label(event.category or "hackathon")
 
     if kind == "24h":
-        header = "⏰ <b>Starting / closing in 24 hours — Bangalore</b>"
+        header = "⏰ <b>HackathonX · registration closes in 24 hours</b>"
     elif kind == "48h":
-        header = "⏰ <b>Starting / closing in 48 hours — Bangalore</b>"
+        header = "⏰ <b>HackathonX · registration closes in 48 hours</b>"
     else:
-        header = f"✨ <b>New {category} — Bangalore</b>"
+        header = f"🚀 <b>HackathonX · New {subtype}</b>"
 
     lines = [
         header,
         "",
         f"<b>{_escape(event.title)}</b>",
         "",
-        f"🏷️ Type: {_escape(category)}",
+        f"🏷️ Type: {_escape(subtype)}",
         f"📍 Location: {location}",
         f"🌐 Mode: {_escape(event.mode)}",
         f"🏢 Host: {org}",
-        f"📱 Source: {_escape(platforms)}",
+        f"📱 Platform: {_escape(platforms)}",
     ]
 
     if event.prize_pool:
@@ -73,8 +71,8 @@ def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
 
     lines.extend(
         [
-            f"⏰ Date / deadline: {_escape(_format_deadline(event))}",
-            f'🔗 <a href="{event.registration_url}">Register / details</a>',
+            f"⏰ Registration closes: {_escape(_format_deadline(event))}",
+            f'🔗 <a href="{event.registration_url}">Register now</a>',
         ]
     )
     return "\n".join(lines)
@@ -83,10 +81,10 @@ def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
 def format_health_alert(platform: str, failures: int, error: str) -> str:
     label = PLATFORM_LABELS.get(platform, platform.title())
     return (
-        f"⚠️ <b>EventX health check</b>\n\n"
+        f"⚠️ <b>HackathonX health check</b>\n\n"
         f"Source <b>{_escape(label)}</b> failed {failures} runs in a row.\n"
         f"Last error: {_escape(error[:300]) or 'unknown'}\n\n"
-        f"New alerts from this source may be missing until it recovers."
+        f"New hackathon alerts from this source may be missing until it recovers."
     )
 
 

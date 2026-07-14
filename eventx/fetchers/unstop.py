@@ -13,14 +13,6 @@ from eventx.models import HackathonEvent
 
 UNSTOP_SEARCH_URL = "https://unstop.com/api/public/opportunity/search-result"
 
-TYPE_TO_CATEGORY = {
-    "hackathons": "hackathon",
-    "competitions": "competition",
-    "quizzes": "competition",
-    "conferences": "conference",
-    "workshops": "workshop",
-}
-
 
 def _extract_location(item: dict) -> str | None:
     address = item.get("address_with_country_logo") or {}
@@ -31,10 +23,9 @@ def _extract_location(item: dict) -> str | None:
     return ", ".join(parts) if parts else None
 
 
-def _normalize_item(item: dict, opportunity_type: str) -> HackathonEvent:
+def _normalize_item(item: dict) -> HackathonEvent:
     regn = item.get("regnRequirements") or {}
     organisation = (item.get("organisation") or {}).get("name")
-    category = TYPE_TO_CATEGORY.get(opportunity_type, "event")
 
     event = HackathonEvent(
         id=str(item["id"]),
@@ -49,19 +40,20 @@ def _normalize_item(item: dict, opportunity_type: str) -> HackathonEvent:
         prize_pool=format_unstop_prizes(item.get("prizes")),
         team_size=format_team_size(regn.get("min_team_size"), regn.get("max_team_size")),
         eligibility=format_unstop_eligibility(regn.get("eligibility")),
-        category=category,
+        category="hackathon",
     )
-    return with_category(event, hints=opportunity_type)
+    return with_category(event, hints=item.get("subtype") or "hackathon")
 
 
 def fetch_unstop_hackathons(max_pages: int | None = None) -> list[HackathonEvent]:
-    """Fetch configured Unstop opportunity types (hackathons, workshops, etc.)."""
+    """Fetch Unstop hackathon listings only."""
     pages = max_pages if max_pages is not None else UNSTOP_MAX_PAGES
     events: list[HackathonEvent] = []
     seen_ids: set[str] = set()
+    types = UNSTOP_TYPES or ["hackathons"]
 
     with httpx.Client(timeout=30.0, headers={"User-Agent": USER_AGENT}) as client:
-        for opportunity_type in UNSTOP_TYPES:
+        for opportunity_type in types:
             for page in range(1, pages + 1):
                 response = client.get(
                     UNSTOP_SEARCH_URL,
@@ -83,8 +75,11 @@ def fetch_unstop_hackathons(max_pages: int | None = None) -> list[HackathonEvent
                         continue
                     if item.get("regn_open") != 1:
                         continue
+                    # Prefer true hackathon listings when type was overridden in env
+                    if opportunity_type != "hackathons" and item.get("type") != "hackathons":
+                        continue
                     seen_ids.add(item_id)
-                    events.append(_normalize_item(item, opportunity_type))
+                    events.append(_normalize_item(item))
 
                 current_page = payload.get("data", {}).get("current_page", page)
                 last_page = payload.get("data", {}).get("last_page", page)

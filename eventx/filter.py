@@ -1,6 +1,6 @@
 import re
 
-from eventx.config import BANGALORE_KEYWORDS, INCLUDE_ONLINE
+from eventx.config import BANGALORE_KEYWORDS, HACKATHON_KEYWORDS, INCLUDE_ONLINE
 from eventx.models import HackathonEvent
 
 # Highway names that mention Bengaluru but are not in Bangalore
@@ -9,7 +9,6 @@ HIGHWAY_FALSE_POSITIVES = (
     re.compile(r"bangalore\s*[-–]\s*chennai", re.I),
 )
 
-# If these appear in location, require Karnataka unless title/URL already matched
 CONTRADICTORY_REGIONS = (
     "tamil nadu",
     "chennai",
@@ -39,9 +38,32 @@ CONTRADICTORY_REGIONS = (
     "goa",
 )
 
+# Platforms whose listings are already hackathon feeds
+_HACKATHON_NATIVE_PLATFORMS = frozenset(
+    {
+        "unstop",
+        "devfolio",
+        "devpost",
+        "hackerearth",
+        "hack2skill",
+        "dorahacks",
+        "mlh",
+    }
+)
 
-def _contains_keyword(text: str) -> bool:
-    return any(keyword in text for keyword in BANGALORE_KEYWORDS)
+_NON_HACKATHON_BLOCKERS = (
+    "workshop series",
+    "masterclass",
+    "concert",
+    "standup",
+    "comedy show",
+    "music festival",
+    "meetup group",
+)
+
+
+def _contains_keyword(text: str, keywords: tuple[str, ...]) -> bool:
+    return any(keyword in text for keyword in keywords)
 
 
 def _strong_match(event: HackathonEvent) -> bool:
@@ -52,12 +74,12 @@ def _strong_match(event: HackathonEvent) -> bool:
             event.organisation or "",
         ]
     ).lower()
-    return _contains_keyword(strong_text)
+    return _contains_keyword(strong_text, BANGALORE_KEYWORDS)
 
 
 def _location_match(location: str) -> bool:
     loc = location.lower()
-    if not _contains_keyword(loc):
+    if not _contains_keyword(loc, BANGALORE_KEYWORDS):
         return False
 
     for pattern in HIGHWAY_FALSE_POSITIVES:
@@ -79,12 +101,45 @@ def is_bangalore_match(event: HackathonEvent) -> bool:
         return True
 
     if INCLUDE_ONLINE and event.mode == "online" and _contains_keyword(
-        (event.title or "") + " " + (event.registration_url or "")
+        (event.title or "") + " " + (event.registration_url or ""),
+        BANGALORE_KEYWORDS,
     ):
         return True
 
     return False
 
 
+def is_hackathon_match(event: HackathonEvent) -> bool:
+    """HackathonX: only software/hardware/buildathon/ideathon/etc. style events."""
+    blob = " ".join(
+        [
+            event.title or "",
+            event.registration_url or "",
+            event.category or "",
+            event.platform or "",
+        ]
+    ).lower()
+
+    if any(blocker in blob for blocker in _NON_HACKATHON_BLOCKERS):
+        return False
+
+    if _contains_keyword(blob, HACKATHON_KEYWORDS):
+        return True
+
+    # Native hackathon feeds (Unstop /hackathons, Devfolio, MLH, …)
+    if event.platform in _HACKATHON_NATIVE_PLATFORMS:
+        return True
+
+    # Curated Luma URLs must still look like a hackathon
+    if event.platform == "luma":
+        return _contains_keyword(blob, HACKATHON_KEYWORDS)
+
+    return False
+
+
 def filter_bangalore(events: list[HackathonEvent]) -> list[HackathonEvent]:
     return [e for e in events if is_bangalore_match(e)]
+
+
+def filter_hackathons(events: list[HackathonEvent]) -> list[HackathonEvent]:
+    return [e for e in events if is_hackathon_match(e)]

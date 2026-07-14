@@ -41,7 +41,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          UNSTOP_MAX_PAGES: "3"
+          UNSTOP_MAX_PAGES: "10"
           INCLUDE_ONLINE: "false"
         run: python main.py
 

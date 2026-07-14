@@ -1,23 +1,20 @@
-"""Infer a friendly event category from title/platform/type hints."""
+"""Hackathon subtype labels for HackathonX (software, hardware, buildathon, …)."""
 
 from __future__ import annotations
 
-import re
-
 from eventx.models import HackathonEvent
 
-_RULES: list[tuple[str, tuple[str, ...]]] = [
-    ("hackathon", ("hackathon", "buildathon", "codeathon", "hackfest", "ideathon")),
-    ("marathon", ("marathon", "half marathon", "10k", "5k run", "running", "trail run", "cycling")),
-    ("workshop", ("workshop", "masterclass", "bootcamp", "hands-on", "training")),
-    ("seminar", ("seminar", "talk", "ama", "fireside", "webinar", "session")),
-    ("conference", ("conference", "summit", "conclave", "symposium", "forum")),
-    ("competition", ("competition", "contest", "challenge", "quiz", "olympiad", "pitch")),
-    ("meetup", ("meetup", "networking", "community", "hangout")),
-    ("festival", ("fest", "festival", "carnival", "fair")),
-    ("music", ("concert", "live music", "gig", "DJ", "orchestra", "tour")),
-    ("sports", ("tournament", "league match", "sports", "fitness", "yoga")),
-    ("startup", ("startup", "pitch day", "demo day", "incubator")),
+# Ordered: first match wins
+_SUBTYPE_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("hardware", ("hardware", "iot", "robotics", "embedded", "electronics", "arduino", "pcb")),
+    ("video", ("video hack", "film hack", "videoathon", "media hack")),
+    ("game", ("game jam", "gamejam", "game hack", "unity hack")),
+    ("ideathon", ("ideathon", "ideaathon", "idea hack")),
+    ("buildathon", ("buildathon", "build-a-thon", "build a thon")),
+    ("datathon", ("datathon", "data hack")),
+    ("designathon", ("designathon", "ui/ux hack", "design hack")),
+    ("makeathon", ("makeathon", "makerathon")),
+    ("software", ("software", "web hack", "app hack", "coding hack", "fullstack")),
 ]
 
 
@@ -28,20 +25,15 @@ def infer_category(
     hints: str | None = None,
 ) -> str:
     blob = f"{title} {hints or ''} {platform or ''}".lower()
-    for category, keywords in _RULES:
-        if any(k.lower() in blob for k in keywords):
+    for category, keywords in _SUBTYPE_RULES:
+        if any(k in blob for k in keywords):
             return category
-    if platform in {"meetup"}:
-        return "meetup"
-    if platform in {"mlh", "hackerearth", "hack2skill"}:
-        return "hackathon"
-    if platform == "allevents":
-        return "event"
-    return "event"
+    return "hackathon"
 
 
 def with_category(event: HackathonEvent, *, hints: str | None = None) -> HackathonEvent:
-    if not event.category or event.category == "event":
+    # Always refine subtype from title even if platform set a generic "hackathon"
+    if not event.category or event.category in {"event", "hackathon"}:
         event.category = infer_category(event.title, platform=event.platform, hints=hints)
     return event
 
@@ -49,15 +41,13 @@ def with_category(event: HackathonEvent, *, hints: str | None = None) -> Hackath
 def category_label(category: str) -> str:
     return {
         "hackathon": "Hackathon",
-        "marathon": "Marathon / Run",
-        "workshop": "Workshop",
-        "seminar": "Seminar",
-        "conference": "Conference",
-        "competition": "Competition",
-        "meetup": "Meetup",
-        "festival": "Festival",
-        "music": "Music / Show",
-        "sports": "Sports",
-        "startup": "Startup",
-        "event": "Event",
-    }.get(category, category.title())
+        "software": "Software Hackathon",
+        "hardware": "Hardware Hackathon",
+        "buildathon": "Buildathon",
+        "ideathon": "Ideathon",
+        "video": "Video Hackathon",
+        "game": "Game Jam",
+        "datathon": "Datathon",
+        "designathon": "Designathon",
+        "makeathon": "Makeathon",
+    }.get(category, "Hackathon")

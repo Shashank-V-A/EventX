@@ -1,8 +1,8 @@
 # EventX
 
-Get Bangalore hackathon registration links delivered to your Telegram.
+Get Bangalore hackathon registration links delivered to your Telegram — with rich details, deadline reminders, and no duplicate spam.
 
-**Platforms:** Unstop, Devfolio, Devpost, HackerEarth, Hack2Skill, DoraHacks
+**Platforms:** Unstop, Devfolio, Devpost, HackerEarth, Hack2Skill, DoraHacks, MLH (+ optional Luma URLs)
 
 ## Setup
 
@@ -40,6 +40,8 @@ TELEGRAM_BOT_TOKEN=123456:ABC...
 TELEGRAM_CHAT_ID=987654321
 UNSTOP_MAX_PAGES=10
 INCLUDE_ONLINE=false
+# Optional: watch specific public Luma events
+# LUMA_EVENT_URLS=https://lu.ma/your-bangalore-event
 ```
 
 ### 5. Run
@@ -68,64 +70,56 @@ EventX runs automatically via [GitHub Actions](https://github.com/Shashank-V-A/E
    | Secret name | Value |
    |-------------|-------|
    | `TELEGRAM_BOT_TOKEN` | Your bot token from @BotFather |
-   | `TELEGRAM_CHAT_ID` | Your Telegram chat ID (`8637683031` if you used the same bot) |
+   | `TELEGRAM_CHAT_ID` | Your Telegram chat ID |
 
 2. **Enable workflows** — open the [Actions tab](https://github.com/Shashank-V-A/EventX/actions), click **I understand my workflows, go ahead and enable them** if prompted.
 
 3. **Test manually** — select **EventX Alerts** → **Run workflow** → **Run workflow**.
 
-After that, it runs every 6 hours on GitHub's servers. Each hackathon is notified **only once** — seen events are saved in `data/events.db` and committed back to the repo after every run.
+Each hackathon is notified **only once**. Seen events are saved in `data/events.db` and committed back to the repo after every run.
 
-### Local run (optional)
+## Features
 
-You can still run manually on your machine for testing:
-
-```bash
-python main.py --dry-run
-python main.py
-```
+- **Richer alerts** — prize pool, team size, and eligibility when platforms expose them
+- **Cross-platform dedupe** — same event on Unstop + Devfolio → one Telegram message
+- **Deadline reminders** — extra ping at ~48h and ~24h before registration closes
+- **Health checks** — Telegram warning if a platform fails 2 runs in a row
+- **MLH** — student hackathons including Bengaluru venues
+- **Luma workaround** — watch specific public event URLs via `LUMA_EVENT_URLS`
 
 ## How it works
 
-1. Fetches open hackathons from Unstop, Devfolio, Devpost, HackerEarth, Hack2Skill, and DoraHacks
-2. Filters for Bangalore / Bengaluru (city, address, org name, or URL)
-3. Skips events you've already been notified about (SQLite)
-4. Sends a Telegram message with the registration link
+1. Fetches open hackathons from all configured sources
+2. Filters for Bangalore / Bengaluru
+3. Merges duplicates across platforms
+4. Sends new alerts + due deadline reminders
+5. Alerts you if a source keeps failing
 
 ### Platform notes
 
-| Platform | Method | Bangalore coverage |
-|----------|--------|-------------------|
-| Unstop | Public API | Best for India/college hackathons |
-| Devfolio | Public API | Good — includes city in location |
-| Devpost | Public API | Global; filters on displayed location |
-| HackerEarth | HTML listing | Mostly online; catches Bangalore in title/URL |
-| Hack2Skill | Public API | Indian events; filters on title/URL |
-| DoraHacks | Public API | Global; filters on venue/title |
-| LabLab.ai | — | Blocked by Cloudflare (not supported yet) |
-| Luma | — | No public discovery API (not supported yet) |
+| Platform | Method | Notes |
+|----------|--------|-------|
+| Unstop | Public API | Best India coverage; prizes/team/eligibility |
+| Devfolio | Public API | Strong city + team size fields |
+| Devpost | Public API | Prize totals when listed |
+| HackerEarth | HTML listing | Mostly online |
+| Hack2Skill | Public API | Indian events |
+| DoraHacks | Public API | Prize when listed |
+| MLH | Season page JSON | Bengaluru student hacks |
+| Luma | Curated URLs | No global discover API |
+| LabLab.ai | — | Blocked by Cloudflare |
 
 ## Project structure
 
 ```
 EventX/
-├── main.py                 # Entry point
+├── main.py
 ├── eventx/
-│   ├── fetchers/
-│   │   ├── unstop.py
-│   │   ├── devfolio.py
-│   │   ├── devpost.py
-│   │   ├── hackerearth.py
-│   │   ├── hack2skill.py
-│   │   └── dorahacks.py
+│   ├── fetchers/          # one module per platform
+│   ├── dedupe.py          # cross-platform merge
 │   ├── filter.py
 │   ├── notifier/telegram.py
-│   ├── storage.py          # SQLite deduplication
+│   ├── storage.py         # seen events + reminders + health
 │   └── models.py
-└── data/events.db          # Created on first run
+└── data/events.db
 ```
-
-## Next steps
-
-- Add LabLab.ai / Luma when reliable access is available
-- Add filters for online / AI hackathons only

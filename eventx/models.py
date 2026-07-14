@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from datetime import datetime
 
 
@@ -12,7 +14,22 @@ class HackathonEvent:
     location: str | None
     deadline: datetime | None
     organisation: str | None
+    prize_pool: str | None = None
+    team_size: str | None = None
+    eligibility: str | None = None
+    platforms: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.platforms:
+            self.platforms = [self.platform]
 
     @property
     def dedupe_key(self) -> str:
         return f"{self.platform}:{self.id}"
+
+    @property
+    def fingerprint(self) -> str:
+        """Cross-platform identity for the same hackathon."""
+        from eventx.dedupe import event_fingerprint
+
+        return event_fingerprint(self)

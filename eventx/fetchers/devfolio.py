@@ -1,8 +1,6 @@
-from datetime import datetime
-
 import httpx
 
-from eventx.fetchers._common import USER_AGENT, parse_datetime
+from eventx.fetchers._common import USER_AGENT, format_team_size, parse_datetime
 from eventx.models import HackathonEvent
 
 DEVFOLIO_API = "https://api.devfolio.co/api/hackathons"
@@ -23,8 +21,10 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
         registration_url=f"https://{slug}.devfolio.co/application",
         mode=mode,
         location=location,
-        deadline=parse_datetime(item.get("ends_at")),
+        deadline=parse_datetime(item.get("ends_at") or item.get("reg_ends_at")),
         organisation=item.get("organizer_name"),
+        team_size=format_team_size(item.get("team_min"), item.get("team_size")),
+        eligibility="Open to all" if item.get("is_online") is not None else None,
     )
 
 

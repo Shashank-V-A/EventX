@@ -1,16 +1,23 @@
 import httpx
 
 from eventx.config import UNSTOP_MAX_PAGES
-from eventx.fetchers._common import USER_AGENT, parse_datetime
+from eventx.fetchers._common import (
+    USER_AGENT,
+    format_team_size,
+    format_unstop_eligibility,
+    format_unstop_prizes,
+    parse_datetime,
+)
 from eventx.models import HackathonEvent
 
 UNSTOP_SEARCH_URL = "https://unstop.com/api/public/opportunity/search-result"
+
+
 def _extract_location(item: dict) -> str | None:
     address = item.get("address_with_country_logo") or {}
     city = address.get("city")
     state = address.get("state")
     full_address = address.get("address")
-
     parts = [p for p in (city, state, full_address) if p]
     return ", ".join(parts) if parts else None
 
@@ -23,11 +30,15 @@ def _normalize_item(item: dict) -> HackathonEvent:
         id=str(item["id"]),
         title=item.get("title", "Untitled"),
         platform="unstop",
-        registration_url=item.get("seo_url") or f"https://unstop.com/{item.get('public_url', '')}",
+        registration_url=item.get("seo_url")
+        or f"https://unstop.com/{item.get('public_url', '')}",
         mode=item.get("region", "unknown"),
         location=_extract_location(item),
         deadline=parse_datetime(regn.get("end_regn_dt")),
         organisation=organisation,
+        prize_pool=format_unstop_prizes(item.get("prizes")),
+        team_size=format_team_size(regn.get("min_team_size"), regn.get("max_team_size")),
+        eligibility=format_unstop_eligibility(regn.get("eligibility")),
     )
 
 

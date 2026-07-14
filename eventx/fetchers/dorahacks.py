@@ -22,6 +22,10 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
     mode = "online" if participation == "Virtual" else "offline"
     location = venue or ("Online" if mode == "online" else None)
 
+    amount = item.get("bonus_price")
+    token = item.get("token") or "USD"
+    prize_pool = f"{amount} {token}" if amount else None
+
     return HackathonEvent(
         id=uname,
         title=title,
@@ -31,6 +35,9 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
         location=location,
         deadline=deadline,
         organisation=item.get("organizer_name"),
+        prize_pool=prize_pool,
+        team_size=None,
+        eligibility=None,
     )
 
 

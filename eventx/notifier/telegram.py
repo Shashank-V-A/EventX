@@ -5,13 +5,6 @@ from eventx.models import HackathonEvent
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 
-
-def _format_deadline(event: HackathonEvent) -> str:
-    if not event.deadline:
-        return "Not specified"
-    return event.deadline.strftime("%d %b %Y, %I:%M %p IST")
-
-
 PLATFORM_LABELS = {
     "unstop": "Unstop",
     "devfolio": "Devfolio",
@@ -19,23 +12,76 @@ PLATFORM_LABELS = {
     "hackerearth": "HackerEarth",
     "hack2skill": "Hack2Skill",
     "dorahacks": "DoraHacks",
+    "mlh": "MLH",
+    "luma": "Luma",
 }
 
 
-def format_message(event: HackathonEvent) -> str:
-    location = event.location or "Not specified"
-    org = event.organisation or "Unknown"
-    platform = PLATFORM_LABELS.get(event.platform, event.platform.title())
+def _format_deadline(event: HackathonEvent) -> str:
+    if not event.deadline:
+        return "Not specified"
+    try:
+        return event.deadline.strftime("%d %b %Y, %I:%M %p")
+    except Exception:
+        return str(event.deadline)
 
+
+def _escape(text: str) -> str:
     return (
-        f"🚀 <b>New Hackathon — Bangalore</b>\n\n"
-        f"<b>{event.title}</b>\n\n"
-        f"📍 Location: {location}\n"
-        f"🌐 Mode: {event.mode}\n"
-        f"🏢 Host: {org}\n"
-        f"📱 Platform: {platform}\n"
-        f"⏰ Registration closes: {_format_deadline(event)}\n"
-        f"🔗 <a href=\"{event.registration_url}\">Register now</a>"
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
+    location = _escape(event.location or "Not specified")
+    org = _escape(event.organisation or "Unknown")
+    platforms = ", ".join(
+        PLATFORM_LABELS.get(p, p.title()) for p in (event.platforms or [event.platform])
+    )
+
+    if kind == "24h":
+        header = "⏰ <b>Deadline in 24 hours — Bangalore</b>"
+    elif kind == "48h":
+        header = "⏰ <b>Deadline in 48 hours — Bangalore</b>"
+    else:
+        header = "🚀 <b>New Hackathon — Bangalore</b>"
+
+    lines = [
+        header,
+        "",
+        f"<b>{_escape(event.title)}</b>",
+        "",
+        f"📍 Location: {location}",
+        f"🌐 Mode: {_escape(event.mode)}",
+        f"🏢 Host: {org}",
+        f"📱 Platform: {_escape(platforms)}",
+    ]
+
+    if event.prize_pool:
+        lines.append(f"🏆 Prize: {_escape(event.prize_pool)}")
+    if event.team_size:
+        lines.append(f"👥 Team size: {_escape(event.team_size)}")
+    if event.eligibility:
+        lines.append(f"✅ Eligibility: {_escape(event.eligibility)}")
+
+    lines.extend(
+        [
+            f"⏰ Registration closes: {_escape(_format_deadline(event))}",
+            f'🔗 <a href="{event.registration_url}">Register now</a>',
+        ]
+    )
+    return "\n".join(lines)
+
+
+def format_health_alert(platform: str, failures: int, error: str) -> str:
+    label = PLATFORM_LABELS.get(platform, platform.title())
+    return (
+        f"⚠️ <b>EventX health check</b>\n\n"
+        f"Platform <b>{_escape(label)}</b> failed {failures} runs in a row.\n"
+        f"Last error: {_escape(error[:300]) or 'unknown'}\n\n"
+        f"New alerts from this source may be missing until it recovers."
     )
 
 
@@ -59,9 +105,17 @@ def send_telegram_message(text: str) -> None:
     response.raise_for_status()
 
 
-def notify_events(events: list[HackathonEvent]) -> int:
+def notify_events(events: list[HackathonEvent], *, kind: str = "new") -> int:
     sent = 0
     for event in events:
-        send_telegram_message(format_message(event))
+        send_telegram_message(format_message(event, kind=kind))
+        sent += 1
+    return sent
+
+
+def notify_health_alerts(alerts: list[tuple[str, int, str]]) -> int:
+    sent = 0
+    for platform, failures, error in alerts:
+        send_telegram_message(format_health_alert(platform, failures, error))
         sent += 1
     return sent

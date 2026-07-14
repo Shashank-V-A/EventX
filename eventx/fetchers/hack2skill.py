@@ -29,7 +29,16 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
     else:
         location = "Offline"
 
-    deadline = parse_datetime(item.get("registrationEnd") or item.get("submissionEnd"))
+    participation = item.get("participation") or ""
+    if participation.lower() == "individual":
+        team_size = "Individual"
+    elif participation.lower() == "team":
+        team_size = "Team"
+    else:
+        team_size = participation or None
+
+    ticket = item.get("ticket")
+    eligibility = f"{ticket} entry" if ticket else None
 
     return HackathonEvent(
         id=event_id,
@@ -38,8 +47,11 @@ def _normalize_item(item: dict) -> HackathonEvent | None:
         registration_url=f"https://hack2skill.com/event/{event_url}",
         mode=mode,
         location=location,
-        deadline=deadline,
+        deadline=parse_datetime(item.get("registrationEnd") or item.get("submissionEnd")),
         organisation=None,
+        team_size=team_size,
+        eligibility=eligibility,
+        prize_pool=None,
     )
 
 

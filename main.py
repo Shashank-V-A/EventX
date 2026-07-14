@@ -1,10 +1,20 @@
 import argparse
 import sys
 
+from eventx.dedupe import merge_duplicate_events
 from eventx.fetchers import fetch_all_hackathons
 from eventx.filter import filter_bangalore
-from eventx.notifier.telegram import notify_events
-from eventx.storage import count_seen, get_new_events, init_db, mark_notified
+from eventx.notifier.telegram import notify_events, notify_health_alerts
+from eventx.storage import (
+    count_seen,
+    get_due_reminders,
+    get_health_alerts,
+    get_new_events,
+    init_db,
+    mark_health_alerted,
+    mark_notified,
+    mark_reminder_sent,
+)
 
 
 def run(
@@ -16,29 +26,59 @@ def run(
     init_db()
     print(f"  Seen events in database: {count_seen()}")
 
-    by_platform = fetch_all_hackathons(max_pages=max_pages)
+    by_platform, failed = fetch_all_hackathons(max_pages=max_pages)
     all_events = []
     for platform, events in by_platform.items():
         print(f"  {platform}: {len(events)} open hackathons")
         all_events.extend(events)
+    if failed:
+        print(f"  failed platforms: {', '.join(failed)}")
 
     print(f"  total: {len(all_events)} open hackathons")
 
     bangalore_events = filter_bangalore(all_events)
     print(f"  {len(bangalore_events)} match Bangalore filter")
 
-    new_events = get_new_events(bangalore_events)
+    deduped = merge_duplicate_events(bangalore_events)
+    print(f"  {len(deduped)} after cross-platform dedupe")
+
+    new_events = get_new_events(deduped)
     print(f"  {len(new_events)} are new (not yet notified)")
 
-    if not new_events:
-        print("Nothing new to send.")
-        return 0
+    events_by_key = {e.dedupe_key: e for e in deduped}
+    reminders = get_due_reminders(events_by_key)
+    print(f"  {len(reminders)} deadline reminder(s) due")
+
+    health = get_health_alerts(threshold=2)
+    if health:
+        print(f"  {len(health)} health alert(s) pending")
 
     if dry_run:
-        print("\n--- Dry run: would send these alerts ---")
-        for event in new_events:
-            print(f"  • [{event.platform}] {event.title}")
-            print(f"    {event.registration_url}")
+        if new_events:
+            print("\n--- Dry run: would send these alerts ---")
+            for event in new_events:
+                platforms = ",".join(event.platforms)
+                print(f"  • [{platforms}] {event.title}")
+                print(f"    {event.registration_url}")
+                extras = []
+                if event.prize_pool:
+                    extras.append(f"prize={event.prize_pool}")
+                if event.team_size:
+                    extras.append(f"team={event.team_size}")
+                if event.eligibility:
+                    extras.append(f"elig={event.eligibility}")
+                if extras:
+                    print(f"    {' | '.join(extras)}")
+        if reminders:
+            print("\n--- Dry run: deadline reminders ---")
+            for event, kind in reminders:
+                print(f"  • [{kind}] {event.title} → {event.deadline}")
+        if health:
+            print("\n--- Dry run: health alerts ---")
+            for platform, failures, error in health:
+                print(f"  • {platform} failed {failures}x: {error[:120]}")
+        if not new_events and not reminders and not health:
+            print("Nothing new to send.")
         return 0
 
     if mark_seen:
@@ -47,9 +87,28 @@ def run(
         print(f"  Seen events in database: {count_seen()}")
         return 0
 
-    sent = notify_events(new_events)
-    mark_notified(new_events)
-    print(f"Sent {sent} Telegram alert(s).")
+    sent = 0
+
+    if new_events:
+        sent += notify_events(new_events)
+        mark_notified(new_events)
+        print(f"Sent {len(new_events)} new hackathon alert(s).")
+
+    for event, kind in reminders:
+        notify_events([event], kind=kind)
+        mark_reminder_sent(event, kind)
+        sent += 1
+    if reminders:
+        print(f"Sent {len(reminders)} deadline reminder(s).")
+
+    if health:
+        notify_health_alerts(health)
+        mark_health_alerted([p for p, _, _ in health])
+        sent += len(health)
+        print(f"Sent {len(health)} health alert(s).")
+
+    if sent == 0:
+        print("Nothing new to send.")
     print(f"  Seen events in database: {count_seen()}")
     return sent
 

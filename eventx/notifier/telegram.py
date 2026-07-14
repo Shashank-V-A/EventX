@@ -1,10 +1,7 @@
-import httpx
-
 from eventx.category import category_label
 from eventx.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from eventx.models import HackathonEvent
-
-TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
+from eventx.subscribers import SubscriberStore, send_to_chat
 
 PLATFORM_LABELS = {
     "unstop": "Unstop",
@@ -89,34 +86,32 @@ def format_health_alert(platform: str, failures: int, error: str) -> str:
 
 
 def send_telegram_message(text: str) -> None:
+    """Admin-only message (idle heartbeat / health)."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         raise ValueError(
             "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your .env file"
         )
-
-    url = TELEGRAM_API.format(token=TELEGRAM_BOT_TOKEN)
-    response = httpx.post(
-        url,
-        json={
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": False,
-        },
-        timeout=30.0,
-    )
-    response.raise_for_status()
+    send_to_chat(str(TELEGRAM_CHAT_ID), text, disable_preview=False)
 
 
 def notify_events(events: list[HackathonEvent], *, kind: str = "new") -> int:
+    """Broadcast real event alerts to every active subscriber."""
+    store = SubscriberStore()
+    recipients = store.list_active_chat_ids()
     sent = 0
     for event in events:
-        send_telegram_message(format_message(event, kind=kind))
-        sent += 1
+        text = format_message(event, kind=kind)
+        for chat_id in recipients:
+            try:
+                if send_to_chat(chat_id, text, disable_preview=False):
+                    sent += 1
+            except Exception as exc:
+                print(f"  Warning: HackathonX send failed ({chat_id}): {exc}")
     return sent
 
 
 def notify_health_alerts(alerts: list[tuple[str, int, str]]) -> int:
+    """Health alerts go to admin only."""
     sent = 0
     for platform, failures, error in alerts:
         send_telegram_message(format_health_alert(platform, failures, error))
@@ -125,7 +120,7 @@ def notify_health_alerts(alerts: list[tuple[str, int, str]]) -> int:
 
 
 def notify_scan_idle() -> None:
-    """Heartbeat when a scan finished with no new hackathon alerts."""
+    """Idle heartbeat — admin only."""
     send_telegram_message(
         "✅ <b>HackathonX</b>\nScan done — no new events found."
     )

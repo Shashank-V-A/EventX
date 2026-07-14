@@ -19,6 +19,7 @@ from eventx.storage import (
     mark_notified,
     mark_reminder_sent,
 )
+from eventx.subscribers import SubscriberStore, process_commands
 
 
 def run(
@@ -28,6 +29,11 @@ def run(
     max_pages: int | None = None,
 ) -> int:
     init_db()
+    store = SubscriberStore()
+    handled = process_commands(store=store)
+    if handled:
+        print(f"  Processed {handled} HackathonX command(s)")
+    print(f"  Subscribers: {store.count_active()}")
     print(f"  Seen events in database: {count_seen()}")
 
     by_platform, failed = fetch_all_hackathons(max_pages=max_pages)

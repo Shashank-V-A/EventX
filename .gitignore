@@ -10,3 +10,5 @@ tmp_*
 !data/
 !data/events.db
 !data/sportx_events.db
+!data/hackathonx_subscribers.db
+!data/sportx_subscribers.db

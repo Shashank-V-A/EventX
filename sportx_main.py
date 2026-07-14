@@ -13,6 +13,7 @@ from sportx.notifier.telegram import (
     notify_scan_idle,
 )
 from sportx.storage import EventStore
+from sportx.subscribers import SubscriberStore, process_commands
 
 
 def _enrich_reminders_from_live(
@@ -36,6 +37,11 @@ def _enrich_reminders_from_live(
 
 def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
     store = EventStore()
+    subs = SubscriberStore()
+    handled = process_commands(store=subs)
+    if handled:
+        print(f"  Processed {handled} SportX command(s)")
+    print(f"  Subscribers: {subs.count_active()}")
     print("Fetching Bangalore sports events (SportX)...")
 
     raw, results = collect_all()

@@ -28,6 +28,22 @@ Bangalore **sports** alerts — marathons, cricket, pickleball, badminton, footb
 
 Then SportX keeps only sports-looking titles and alerts on Telegram.
 
+## Public subscriptions (open)
+
+Anyone can use the bots:
+
+1. Open the bot on Telegram → tap **Start** (`/start`)
+2. They receive **real event alerts** (and deadline reminders)
+3. `/stop` unsubscribes
+
+| Bot | Username |
+|-----|----------|
+| HackathonX | your HackathonX bot |
+| SportX | [@Sportx_va_bot](https://t.me/Sportx_va_bot) |
+
+**Idle “scan done — no new events” messages stay admin-only** (your chat id).  
+A **Subscriber Sync** workflow runs every 15 minutes so `/start` / `/stop` are handled without waiting for the 6-hour scan.
+
 ## Setup
 
 ```bash
@@ -72,7 +88,8 @@ Every ~6 hours via GitHub Actions (separate workflows):
 3. Applies hackathon **or** sports filters
 4. Dedupes → **one** Telegram message per listing
 5. Reminds at **48h** / **24h** when a date is known
-6. Health warning if a source fails twice in a row
+6. Health warning if a source fails twice in a row (admin only)
+7. Broadcasts new events to **all** `/start` subscribers
 
 ## GitHub Actions
 

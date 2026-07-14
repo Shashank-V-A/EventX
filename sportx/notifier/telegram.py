@@ -3,13 +3,14 @@ from __future__ import annotations
 import html
 import re
 
-import httpx
-
 from sportx.category import category_label
 from sportx.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from sportx.models import SportEvent
-
-TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
+from sportx.subscribers import (
+    SubscriberStore,
+    send_photo_to_chat,
+    send_to_chat,
+)
 
 PLATFORM_LABELS = {
     "allevents": "AllEvents",
@@ -35,7 +36,6 @@ def _escape(text: str) -> str:
 def _clean_description(text: str | None, limit: int = 280) -> str | None:
     if not text:
         return None
-    # Strip HTML tags from Meetup/AllEvents blurbs
     plain = re.sub(r"<[^>]+>", " ", text)
     plain = html.unescape(plain)
     plain = re.sub(r"\s+", " ", plain).strip()
@@ -101,66 +101,36 @@ def format_health_alert(platform: str, failures: int, error: str) -> str:
     )
 
 
-def _api(method: str) -> str:
-    return TELEGRAM_API.format(token=TELEGRAM_BOT_TOKEN, method=method)
-
-
 def send_telegram_message(text: str, *, disable_preview: bool = True) -> None:
+    """Admin-only message (idle heartbeat / health)."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         raise ValueError(
             "Set SPORTX_TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your .env file"
         )
-
-    response = httpx.post(
-        _api("sendMessage"),
-        json={
-            "chat_id": TELEGRAM_CHAT_ID,
-            "text": text,
-            "parse_mode": "HTML",
-            "disable_web_page_preview": disable_preview,
-        },
-        timeout=30.0,
-    )
-    response.raise_for_status()
-
-
-def send_telegram_photo(photo_url: str, caption: str) -> None:
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        raise ValueError(
-            "Set SPORTX_TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your .env file"
-        )
-
-    # Telegram captions max ~1024 chars
-    if len(caption) > 1024:
-        caption = caption[:1021] + "…"
-
-    response = httpx.post(
-        _api("sendPhoto"),
-        json={
-            "chat_id": TELEGRAM_CHAT_ID,
-            "photo": photo_url,
-            "caption": caption,
-            "parse_mode": "HTML",
-        },
-        timeout=30.0,
-    )
-    response.raise_for_status()
+    send_to_chat(str(TELEGRAM_CHAT_ID), text, disable_preview=disable_preview)
 
 
 def notify_events(events: list[SportEvent], *, kind: str = "new") -> int:
+    """Broadcast real event alerts to every active subscriber."""
+    store = SubscriberStore()
+    recipients = store.list_active_chat_ids()
     sent = 0
     for event in events:
         caption = format_message(event, kind=kind)
-        if event.image_url:
+        for chat_id in recipients:
             try:
-                send_telegram_photo(event.image_url, caption)
-                sent += 1
-                continue
-            except Exception:
-                # Fall back to text if Telegram rejects the image URL
-                pass
-        send_telegram_message(caption, disable_preview=True)
-        sent += 1
+                ok = False
+                if event.image_url:
+                    try:
+                        ok = send_photo_to_chat(chat_id, event.image_url, caption)
+                    except Exception:
+                        ok = False
+                if not ok:
+                    ok = send_to_chat(chat_id, caption, disable_preview=True)
+                if ok:
+                    sent += 1
+            except Exception as exc:
+                print(f"  Warning: SportX send failed ({chat_id}): {exc}")
     return sent
 
 
@@ -173,7 +143,7 @@ def notify_health_alerts(alerts: list[tuple[str, int, str]]) -> int:
 
 
 def notify_scan_idle() -> None:
-    """Heartbeat when a scan finished with no new sports alerts."""
+    """Idle heartbeat — admin only."""
     send_telegram_message(
         "✅ <b>SportX</b>\nScan done — no new events found."
     )

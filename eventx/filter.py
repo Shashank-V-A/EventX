@@ -63,7 +63,16 @@ _NON_HACKATHON_BLOCKERS = (
 
 
 def _contains_keyword(text: str, keywords: tuple[str, ...]) -> bool:
-    return any(keyword in text for keyword in keywords)
+    low = text.lower()
+    for keyword in keywords:
+        if keyword == "blr":
+            # Avoid matching inside words like "tumblr"
+            if re.search(r"(?<![a-z0-9])blr(?![a-z0-9])", low):
+                return True
+            continue
+        if keyword in low:
+            return True
+    return False
 
 
 def _strong_match(event: HackathonEvent) -> bool:

@@ -1,7 +1,6 @@
 name: Subscriber Sync
 
-# Polls both bots for /start and /stop so people can subscribe
-# without waiting for the next 6-hour scan.
+# Sole getUpdates poller for /start and /stop (scans do not poll Telegram commands).
 
 on:
   schedule:
@@ -9,11 +8,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: subscriber-sync
+  group: eventx-data-persist
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   sync:
@@ -26,6 +25,22 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Restore HackathonX subscribers cache
+        uses: actions/cache@v4
+        with:
+          path: data/hackathonx_subscribers.db
+          key: hackathonx-subscribers-${{ github.run_id }}
+          restore-keys: |
+            hackathonx-subscribers-
+
+      - name: Restore SportX subscribers cache
+        uses: actions/cache@v4
+        with:
+          path: data/sportx_subscribers.db
+          key: sportx-subscribers-${{ github.run_id }}
+          restore-keys: |
+            sportx-subscribers-
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -36,15 +51,3 @@ jobs:
           SPORTX_TELEGRAM_BOT_TOKEN: ${{ secrets.SPORTX_TELEGRAM_BOT_TOKEN }}
           SPORTX_TELEGRAM_CHAT_ID: ${{ secrets.SPORTX_TELEGRAM_CHAT_ID }}
         run: python sync_subscribers.py
-
-      - name: Persist subscriber databases
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/hackathonx_subscribers.db data/sportx_subscribers.db
-          if git diff --staged --quiet; then
-            echo "No subscriber database changes."
-          else
-            git commit -m "chore: update subscriber databases [skip ci]"
-            git push
-          fi

@@ -44,6 +44,8 @@ Anyone can use the bots:
 **Idle “scan done — no new events” messages stay admin-only** (your chat id).  
 A **Subscriber Sync** workflow runs every 15 minutes so `/start` / `/stop` are handled without waiting for the 6-hour scan.
 
+Subscriber chat IDs are stored in GitHub Actions cache only (not committed to the public repo).
+
 ## Setup
 
 ```bash

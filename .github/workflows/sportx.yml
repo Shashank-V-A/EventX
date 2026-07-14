@@ -2,12 +2,12 @@ name: SportX Alerts
 
 on:
   schedule:
-    # Every 6 hours UTC (offset 30 min from HackathonX to spread load)
+    # Every 6 hours UTC (offset 30 min from HackathonX)
     - cron: "30 */6 * * *"
   workflow_dispatch:
 
 concurrency:
-  group: sportx-alerts
+  group: eventx-data-persist
   cancel-in-progress: false
 
 permissions:
@@ -32,6 +32,14 @@ jobs:
           restore-keys: |
             sportx-seen-events-
 
+      - name: Restore SportX subscribers cache
+        uses: actions/cache@v4
+        with:
+          path: data/sportx_subscribers.db
+          key: sportx-subscribers-${{ github.run_id }}
+          restore-keys: |
+            sportx-subscribers-
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -46,10 +54,14 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/sportx_events.db data/sportx_subscribers.db
+          git pull --rebase origin main || true
+          git add data/sportx_events.db
           if git diff --staged --quiet; then
             echo "No SportX database changes to commit."
           else
             git commit -m "chore: update SportX seen-events database [skip ci]"
-            git push
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push && break
+              sleep 5
+            done
           fi

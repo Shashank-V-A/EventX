@@ -6,9 +6,10 @@ __pycache__/
 venv/
 sample_*.json
 tmp_*
-# Keep seen DBs as seed; Actions commits updates between runs
+# Subscriber DBs hold Telegram chat IDs — never commit (Actions cache only)
+data/hackathonx_subscribers.db
+data/sportx_subscribers.db
+# Keep seen-event DBs as seed; Actions commits updates between runs
 !data/
 !data/events.db
 !data/sportx_events.db
-!data/hackathonx_subscribers.db
-!data/sportx_subscribers.db

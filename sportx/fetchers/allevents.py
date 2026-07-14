@@ -69,6 +69,30 @@ def _parse_event(item: dict) -> SportEvent | None:
         return None
     hints = f"{title} {location}"
 
+    image = (
+        item.get("thumb_url_large")
+        or item.get("banner_url")
+        or item.get("thumb_url")
+        or item.get("cover_image")
+    )
+    if isinstance(image, str):
+        image = image.replace("\\/", "/")
+    else:
+        image = None
+
+    desc = item.get("description") or item.get("short_desc") or item.get("event_description")
+    if isinstance(desc, str):
+        desc = html.unescape(desc.strip())
+    else:
+        desc = None
+
+    # Prefer precise venue string when present
+    venue_name = None
+    if isinstance(item.get("venue"), dict):
+        venue_name = item["venue"].get("fullname") or item["venue"].get("full_address")
+    if venue_name:
+        location = f"{venue_name}, {location}" if location and location not in str(venue_name) else str(venue_name)
+
     event = SportEvent(
         id=eid,
         title=title,
@@ -78,6 +102,8 @@ def _parse_event(item: dict) -> SportEvent | None:
         location=location,
         deadline=deadline,
         organisation=str(org) if org else None,
+        image_url=image,
+        description=desc,
     )
     return with_category(event, hints=hints)
 

@@ -7,6 +7,21 @@ from pathlib import Path
 from sportx.config import DB_PATH
 from sportx.models import SportEvent
 
+_SEEN_COLUMNS = {
+    "dedupe_key": "TEXT PRIMARY KEY",
+    "fingerprint": "TEXT",
+    "title": "TEXT",
+    "url": "TEXT",
+    "deadline": "TEXT",
+    "first_seen_at": "TEXT NOT NULL",
+    "platform": "TEXT",
+    "location": "TEXT",
+    "organisation": "TEXT",
+    "category": "TEXT",
+    "image_url": "TEXT",
+    "description": "TEXT",
+}
+
 
 class EventStore:
     def __init__(self, db_path: Path = DB_PATH) -> None:
@@ -29,10 +44,25 @@ class EventStore:
                     title TEXT,
                     url TEXT,
                     deadline TEXT,
-                    first_seen_at TEXT NOT NULL
+                    first_seen_at TEXT NOT NULL,
+                    platform TEXT,
+                    location TEXT,
+                    organisation TEXT,
+                    category TEXT,
+                    image_url TEXT,
+                    description TEXT
                 )
                 """
             )
+            existing = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(seen_events)").fetchall()
+            }
+            for col, decl in _SEEN_COLUMNS.items():
+                if col in existing or col == "dedupe_key":
+                    continue
+                conn.execute(f"ALTER TABLE seen_events ADD COLUMN {col} {decl}")
+
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS reminders_sent (
@@ -66,15 +96,31 @@ class EventStore:
     def mark_seen(self, event: SportEvent) -> None:
         now = datetime.now(timezone.utc).isoformat()
         deadline = event.deadline.isoformat() if event.deadline else None
+        desc = (event.description or "")[:800] or None
         with self._connect() as conn:
+            existing = conn.execute(
+                "SELECT first_seen_at FROM seen_events WHERE dedupe_key = ?",
+                (event.dedupe_key,),
+            ).fetchone()
+            first_seen = existing["first_seen_at"] if existing else now
             conn.execute(
                 """
-                INSERT OR REPLACE INTO seen_events
-                (dedupe_key, fingerprint, title, url, deadline, first_seen_at)
-                VALUES (?, ?, ?, ?, ?, COALESCE(
-                    (SELECT first_seen_at FROM seen_events WHERE dedupe_key = ?),
-                    ?
-                ))
+                INSERT INTO seen_events (
+                    dedupe_key, fingerprint, title, url, deadline, first_seen_at,
+                    platform, location, organisation, category, image_url, description
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(dedupe_key) DO UPDATE SET
+                    fingerprint = excluded.fingerprint,
+                    title = excluded.title,
+                    url = excluded.url,
+                    deadline = excluded.deadline,
+                    platform = excluded.platform,
+                    location = excluded.location,
+                    organisation = excluded.organisation,
+                    category = excluded.category,
+                    image_url = excluded.image_url,
+                    description = excluded.description
                 """,
                 (
                     event.dedupe_key,
@@ -82,8 +128,13 @@ class EventStore:
                     event.title,
                     event.registration_url,
                     deadline,
-                    event.dedupe_key,
-                    now,
+                    first_seen,
+                    event.platform,
+                    event.location,
+                    event.organisation,
+                    event.category,
+                    event.image_url,
+                    desc,
                 ),
             )
             conn.commit()
@@ -91,6 +142,12 @@ class EventStore:
     def mark_many_seen(self, events: list[SportEvent]) -> None:
         for event in events:
             self.mark_seen(event)
+
+    def refresh_seen_metadata(self, events: list[SportEvent]) -> None:
+        """Update stored listing details for events we already know about."""
+        for event in events:
+            if self.has_seen(event):
+                self.mark_seen(event)
 
     def reminder_already_sent(self, fingerprint: str, kind: str) -> bool:
         with self._connect() as conn:
@@ -109,14 +166,38 @@ class EventStore:
             )
             conn.commit()
 
+    def _row_to_event(self, row: sqlite3.Row, deadline: datetime) -> SportEvent:
+        platform = row["platform"] or "meetup"
+        # Older rows stored dedupe_key as platform:id; recover id
+        raw_id = row["dedupe_key"] or ""
+        eid = raw_id.split(":", 1)[-1] if ":" in raw_id else raw_id
+        return SportEvent(
+            id=eid,
+            title=row["title"] or "Sports event",
+            platform=platform,
+            registration_url=row["url"] or "",
+            mode="offline",
+            location=row["location"] or "Bangalore",
+            deadline=deadline,
+            organisation=row["organisation"],
+            category=row["category"] or "sports",
+            image_url=row["image_url"],
+            description=row["description"],
+        )
+
     def events_needing_reminders(self) -> list[tuple[SportEvent, str, str]]:
-        """Return (event-like, kind, fingerprint) for 48h and 24h windows."""
+        """Return (event, kind, fingerprint) for 48h and 24h windows."""
         now = datetime.now(timezone.utc)
         windows = [("48h", timedelta(hours=48)), ("24h", timedelta(hours=24))]
         out: list[tuple[SportEvent, str, str]] = []
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT dedupe_key, fingerprint, title, url, deadline FROM seen_events WHERE deadline IS NOT NULL"
+                """
+                SELECT dedupe_key, fingerprint, title, url, deadline,
+                       platform, location, organisation, category, image_url, description
+                FROM seen_events
+                WHERE deadline IS NOT NULL
+                """
             ).fetchall()
         for row in rows:
             try:
@@ -131,17 +212,7 @@ class EventStore:
                 if timedelta(0) < delta <= window:
                     if self.reminder_already_sent(fingerprint, kind):
                         continue
-                    event = SportEvent(
-                        id=row["dedupe_key"],
-                        title=row["title"] or "Sports event",
-                        platform="reminder",
-                        registration_url=row["url"] or "",
-                        mode="offline",
-                        location="Bangalore",
-                        deadline=deadline,
-                        organisation=None,
-                    )
-                    out.append((event, kind, fingerprint))
+                    out.append((self._row_to_event(row, deadline), kind, fingerprint))
         return out
 
     def record_fetch_result(self, platform: str, ok: bool, error: str | None = None) -> int:

@@ -6,8 +6,28 @@ import sys
 from sportx.dedupe import merge_duplicate_events
 from sportx.fetchers import collect_all
 from sportx.filter import filter_events
+from sportx.models import SportEvent
 from sportx.notifier.telegram import notify_events, notify_health_alerts
 from sportx.storage import EventStore
+
+
+def _enrich_reminders_from_live(
+    reminders: list[tuple[SportEvent, str, str]],
+    live: list[SportEvent],
+) -> list[tuple[SportEvent, str, str]]:
+    """Prefer freshly fetched listing details when reminding about an event."""
+    by_fp = {e.fingerprint: e for e in live}
+    by_url = {e.registration_url.rstrip("/"): e for e in live if e.registration_url}
+    enriched: list[tuple[SportEvent, str, str]] = []
+    for event, kind, fingerprint in reminders:
+        live_event = by_fp.get(fingerprint) or by_url.get(event.registration_url.rstrip("/"))
+        if live_event:
+            # Keep reminder timing; use live metadata
+            live_event.deadline = event.deadline or live_event.deadline
+            enriched.append((live_event, kind, fingerprint))
+        else:
+            enriched.append((event, kind, fingerprint))
+    return enriched
 
 
 def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
@@ -34,10 +54,13 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
     deduped = merge_duplicate_events(filtered)
     print(f"  {len(deduped)} after cross-platform dedupe")
 
+    # Keep stored details fresh for future reminders
+    store.refresh_seen_metadata(deduped)
+
     new_events = [e for e in deduped if not store.has_seen(e)]
     print(f"  {len(new_events)} are new (not yet notified)")
 
-    reminders = store.events_needing_reminders()
+    reminders = _enrich_reminders_from_live(store.events_needing_reminders(), deduped)
     print(f"  {len(reminders)} reminder(s) due")
 
     if dry_run:
@@ -48,6 +71,12 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
                 line = f"  • [{platforms}] {event.category}: {event.title}"
                 try:
                     print(line)
+                    if event.organisation:
+                        print(f"    host: {event.organisation}")
+                    if event.image_url:
+                        print(f"    image: {event.image_url}")
+                    if event.description:
+                        print(f"    desc: {event.description[:120]}")
                     print(f"    {event.registration_url}")
                 except UnicodeEncodeError:
                     print(line.encode("ascii", "replace").decode())
@@ -55,7 +84,7 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
         if reminders:
             print("\n--- Dry run: reminders ---")
             for event, kind, _fp in reminders:
-                print(f"  • [{kind}] {event.title}")
+                print(f"  • [{kind}] {event.title} | {event.organisation or '-'} | img={bool(event.image_url)}")
         if health:
             print("\n--- Dry run: health alerts ---")
             for platform, failures, error in health:
@@ -65,8 +94,8 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
         return 0
 
     if mark_seen:
-        store.mark_many_seen(new_events)
-        print(f"Marked {len(new_events)} event(s) as seen (no Telegram messages).")
+        store.mark_many_seen(deduped)
+        print(f"Marked {len(deduped)} event(s) as seen (no Telegram messages).")
         return 0
 
     sent = 0

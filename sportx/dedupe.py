@@ -30,7 +30,8 @@ def event_fingerprint(event: SportEvent) -> str:
     except Exception:
         host, path = "", ""
 
-    if host and host not in _AGGREGATORS:
+    # Prefer stable URL fingerprints so enriched titles don't reshuffle reminders
+    if host and path and path not in ("/", ""):
         return f"url:{host}{path}"
 
     title_key = normalize_title(event.title)
@@ -65,5 +66,11 @@ def merge_duplicate_events(events: list[SportEvent]) -> list[SportEvent]:
         primary.organisation = next(
             (e.organisation for e in group if e.organisation), primary.organisation
         )
+        primary.image_url = next((e.image_url for e in group if e.image_url), primary.image_url)
+        primary.description = next(
+            (e.description for e in group if e.description), primary.description
+        )
+        # Prefer the richer / longer title when one listing is generic
+        primary.title = max((e.title for e in group), key=len)
         merged.append(primary)
     return merged

@@ -16,6 +16,8 @@ class SportEvent:
     organisation: str | None
     category: str = "sports"
     platforms: list[str] = field(default_factory=list)
+    image_url: str | None = None
+    description: str | None = None
 
     def __post_init__(self) -> None:
         if not self.platforms:

@@ -1,4 +1,4 @@
-# Prefer ASGI FastAPI app; ignore per-file handlers under api/
+# Prefer ASGI FastAPI app; ignore unused folders
 api/
 # GitHub Actions scanners — not Vercel Functions
 main.py

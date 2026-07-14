@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import sys
 
+from eventx.blob_store import require_shared_store
 from sportx.dedupe import merge_duplicate_events
 from sportx.fetchers import collect_all
 from sportx.filter import filter_events
@@ -36,10 +37,11 @@ def _enrich_reminders_from_live(
 
 
 def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
+    require_shared_store(context="SportX scan")
     store = EventStore()
-    # /start polling is owned by sync_subscribers.py (Subscriber Sync workflow)
+    # /start /stop /help are handled instantly by the Vercel webhook (app.py)
     subs = SubscriberStore()
-    print(f"  Subscribers: {subs.count_active()}")
+    print(f"  Subscribers: {subs.count_active()} (Vercel Blob)")
     print("Fetching Bangalore sports events (SportX)...")
 
     raw, results = collect_all()

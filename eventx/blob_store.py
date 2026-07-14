@@ -8,10 +8,10 @@ import time
 from urllib.parse import quote
 
 import httpx
+from dotenv import load_dotenv
 
-BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN") or os.getenv(
-    "VERCEL_BLOB_READ_WRITE_TOKEN", ""
-)
+load_dotenv()
+
 BLOB_API = (
     os.getenv("VERCEL_BLOB_API_URL")
     or os.getenv("NEXT_PUBLIC_VERCEL_BLOB_API_URL")
@@ -20,8 +20,27 @@ BLOB_API = (
 API_VERSION = os.getenv("VERCEL_BLOB_API_VERSION_OVERRIDE") or "11"
 
 
+def _token() -> str:
+    return (
+        os.getenv("BLOB_READ_WRITE_TOKEN")
+        or os.getenv("VERCEL_BLOB_READ_WRITE_TOKEN")
+        or ""
+    )
+
+
 def blob_configured() -> bool:
-    return bool(BLOB_READ_WRITE_TOKEN)
+    return bool(_token())
+
+
+def require_shared_store(*, context: str = "runtime") -> None:
+    """Fail loudly in production hosts if Blob is not configured."""
+    if blob_configured():
+        return
+    if os.getenv("GITHUB_ACTIONS") or os.getenv("VERCEL"):
+        raise RuntimeError(
+            f"{context}: BLOB_READ_WRITE_TOKEN is required so subscribers "
+            "are shared between Vercel webhooks and GitHub scans"
+        )
 
 
 def shared_store_configured() -> bool:
@@ -30,7 +49,8 @@ def shared_store_configured() -> bool:
 
 
 def _store_id() -> str:
-    parts = BLOB_READ_WRITE_TOKEN.split("_")
+    token = _token()
+    parts = token.split("_")
     # vercel_blob_rw_<storeId>_...
     if len(parts) > 3:
         return parts[3]
@@ -43,7 +63,7 @@ def _pathname(bot: str) -> str:
 
 def _auth_headers(**extra: str) -> dict[str, str]:
     headers = {
-        "authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
+        "authorization": f"Bearer {_token()}",
         "x-api-version": str(API_VERSION),
     }
     headers.update(extra)

@@ -165,18 +165,11 @@ def get_due_reminders(events_by_key: dict[str, HackathonEvent]) -> list[tuple[Ha
                     event = candidate
                     break
 
+        # Only remind for events still present in the current filtered scan.
+        # Avoids re-alerting on old /false-positive rows left in seen_events.
         if event is None:
-            event = HackathonEvent(
-                id=row["dedupe_key"].split(":", 1)[-1],
-                title=row["title"],
-                platform=row["platform"],
-                registration_url=row["registration_url"],
-                mode="unknown",
-                location=None,
-                deadline=deadline,
-                organisation=None,
-            )
-        elif event.deadline is None:
+            continue
+        if event.deadline is None:
             event.deadline = deadline
 
         if 0 < hours_left <= 24 and not row["reminder_24h_sent"]:

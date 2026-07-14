@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from eventx.blob_store import require_shared_store
 from eventx.dedupe import merge_duplicate_events
 from eventx.fetchers import fetch_all_hackathons
 from eventx.filter import filter_bangalore, filter_hackathons
@@ -28,10 +29,11 @@ def run(
     mark_seen: bool = False,
     max_pages: int | None = None,
 ) -> int:
+    require_shared_store(context="HackathonX scan")
     init_db()
-    # /start polling is owned by sync_subscribers.py (Subscriber Sync workflow)
+    # /start /stop /help are handled instantly by the Vercel webhook (app.py)
     store = SubscriberStore()
-    print(f"  Subscribers: {store.count_active()}")
+    print(f"  Subscribers: {store.count_active()} (Vercel Blob)")
     print(f"  Seen events in database: {count_seen()}")
 
     by_platform, failed = fetch_all_hackathons(max_pages=max_pages)

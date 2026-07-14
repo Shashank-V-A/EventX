@@ -29,7 +29,6 @@ SPORT_KEYWORDS = (
     "fun run",
     "running",
     "trail run",
-    "trail",
     "cycling",
     "bike ride",
     "cricket",

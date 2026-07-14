@@ -1,4 +1,4 @@
-"""AllEvents Bangalore sports listings via categorization API."""
+"""AllEvents Bangalore sports listings via categorization API + keyword search."""
 
 from __future__ import annotations
 
@@ -18,6 +18,23 @@ _CATEGORIES = (
     "sports",
     "sports-fitness",
     "health-wellness",
+)
+_KEYWORDS = (
+    "pickleball",
+    "marathon",
+    "half marathon",
+    "cricket",
+    "badminton",
+    "football",
+    "tennis",
+    "padel",
+    "running",
+    "5k",
+    "10k",
+    "cycling",
+    "swimming",
+    "yoga",
+    "triathlon",
 )
 _ROWS = 40
 _MAX_PAGES = 3
@@ -47,7 +64,6 @@ def _parse_event(item: dict) -> SportEvent | None:
         or item.get("event_date")
         or item.get("start_date")
     )
-    # AllEvents often uses unix timestamps
     deadline = None
     if isinstance(when, (int, float)) or (isinstance(when, str) and str(when).isdigit()):
         try:
@@ -64,7 +80,6 @@ def _parse_event(item: dict) -> SportEvent | None:
         org = None
 
     eid = str(item.get("event_id") or url.rstrip("/").split("/")[-1])
-    # Title-first: do not trust AllEvents category tags (travel often tagged "sports")
     if not is_sports_event(title, location):
         return None
     hints = f"{title} {location}"
@@ -86,12 +101,15 @@ def _parse_event(item: dict) -> SportEvent | None:
     else:
         desc = None
 
-    # Prefer precise venue string when present
     venue_name = None
     if isinstance(item.get("venue"), dict):
         venue_name = item["venue"].get("fullname") or item["venue"].get("full_address")
     if venue_name:
-        location = f"{venue_name}, {location}" if location and location not in str(venue_name) else str(venue_name)
+        location = (
+            f"{venue_name}, {location}"
+            if location and location not in str(venue_name)
+            else str(venue_name)
+        )
 
     event = SportEvent(
         id=eid,
@@ -108,6 +126,56 @@ def _parse_event(item: dict) -> SportEvent | None:
     return with_category(event, hints=hints)
 
 
+def _fetch_pages(
+    client: httpx.Client,
+    *,
+    category: list | int,
+    keywords: str | None,
+    seen: set[str],
+    out: list[SportEvent],
+) -> None:
+    for page in range(1, _MAX_PAGES + 1):
+        payload = {
+            "venue": 0,
+            "page": page,
+            "rows": _ROWS,
+            "tag_type": "",
+            "sdate": 0,
+            "edate": 0,
+            "city": "bangalore",
+            "keywords": keywords,
+            "category": category,
+            "formats": 0,
+            "sort_by_score_only": True,
+        }
+        try:
+            resp = client.post(_API, content=json.dumps(payload))
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception:
+            break
+
+        if not data or data is False or not isinstance(data, dict):
+            break
+
+        items = data.get("item") or []
+        if not items:
+            break
+
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            event = _parse_event(item)
+            if not event or event.id in seen:
+                continue
+            seen.add(event.id)
+            out.append(event)
+
+        count = int(data.get("count") or 0)
+        if page * _ROWS >= count or len(items) < _ROWS:
+            break
+
+
 def fetch_allevents_sports() -> list[SportEvent]:
     out: list[SportEvent] = []
     seen: set[str] = set()
@@ -120,49 +188,14 @@ def fetch_allevents_sports() -> list[SportEvent]:
     }
 
     with httpx.Client(timeout=30.0, headers=headers, follow_redirects=True) as client:
-        # Session cookies help some AllEvents endpoints
         client.get("https://allevents.in/bangalore/sports")
 
         for category in _CATEGORIES:
-            for page in range(1, _MAX_PAGES + 1):
-                payload = {
-                    "venue": 0,
-                    "page": page,
-                    "rows": _ROWS,
-                    "tag_type": "",
-                    "sdate": 0,
-                    "edate": 0,
-                    "city": "bangalore",
-                    "keywords": None,
-                    "category": [category],
-                    "formats": 0,
-                    "sort_by_score_only": True,
-                }
-                try:
-                    resp = client.post(_API, content=json.dumps(payload))
-                    resp.raise_for_status()
-                    data = resp.json()
-                except Exception:
-                    break
+            _fetch_pages(
+                client, category=[category], keywords=None, seen=seen, out=out
+            )
 
-                if not data or data is False or not isinstance(data, dict):
-                    break
-
-                items = data.get("item") or []
-                if not items:
-                    break
-
-                for item in items:
-                    if not isinstance(item, dict):
-                        continue
-                    event = _parse_event(item)
-                    if not event or event.id in seen:
-                        continue
-                    seen.add(event.id)
-                    out.append(event)
-
-                count = int(data.get("count") or 0)
-                if page * _ROWS >= count or len(items) < _ROWS:
-                    break
+        for keyword in _KEYWORDS:
+            _fetch_pages(client, category=0, keywords=keyword, seen=seen, out=out)
 
     return out

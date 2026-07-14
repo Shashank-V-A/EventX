@@ -22,6 +22,21 @@ _FALSE_RUN = re.compile(
     re.I,
 )
 
+# Substring keywords that are long enough / multi-word to safely use `in`
+_SAFE_SUBSTRING = tuple(k for k in SPORT_KEYWORDS if " " in k or len(k.strip()) >= 5)
+# Short tokens need word boundaries (mma matched "Gemma" / "Namma" before)
+_SHORT_TOKENS = tuple(k.strip() for k in SPORT_KEYWORDS if " " not in k and len(k.strip()) < 5)
+
+
+def _keyword_hit(text: str) -> bool:
+    low = text.lower()
+    if any(k in low for k in _SAFE_SUBSTRING):
+        return True
+    for token in _SHORT_TOKENS:
+        if re.search(rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])", low):
+            return True
+    return False
+
 
 def mentions_bangalore(text: str | None) -> bool:
     if not text:
@@ -36,7 +51,6 @@ def is_sports_event(title: str, extra: str = "") -> bool:
     blob = f"{title} {extra}".lower()
 
     if _FALSE_RUN.search(title):
-        # still allow if a strong sport keyword survives
         if not any(
             s in blob
             for s in ("marathon", "cricket", "pickleball", "badminton", "10k", "5k")
@@ -57,24 +71,38 @@ def is_sports_event(title: str, extra: str = "") -> bool:
         if not any(s in blob for s in strong):
             return False
 
-    if any(k in title_l for k in SPORT_KEYWORDS):
+    # Block obvious non-sport meetups even if a short token mis-hits
+    if re.search(r"\b(hackathon|startup|founders?|huggingface|book\s*club)\b", title_l):
+        if not any(
+            s in title_l
+            for s in ("marathon", "cricket", "pickleball", "badminton", "football", "run ")
+        ):
+            return False
+
+    if _keyword_hit(title_l):
         return True
     if _TITLE_ONLY.search(title):
         return True
-    # Standalone "run" only when sports-like (… Run 2026 / Namma Run / …)
     if re.search(r"\brun\b", title_l) and re.search(
         r"\b(run\s+\d{4}|namma\s+run|\brun\b.*\b(club|challenge|series|fest))"
         r"|(\d+k|\b5k\b|\b10k\b).*\brun\b|\brun\b.*(\d+k|\b5k\b|\b10k\b)",
         title_l,
     ):
         return True
-    # Extra may mention sport type (Meetup venue notes) but ignore bare "sports" category tags
+
+    # Venue / location extras — skip bare "sports" category noise
     extra_l = extra.lower()
-    for k in SPORT_KEYWORDS:
-        if k == "sports":
-            continue
-        if k in extra_l:
-            return True
+    if _keyword_hit(extra_l) and "sports" not in extra_l.split():
+        # still allow location "GoRally Pickleball ..."
+        tokens = set(re.findall(r"[a-z0-9]+", extra_l))
+        if "sports" in tokens and len(tokens) <= 2:
+            return False
+        return _keyword_hit(extra_l.replace("sports", " "))
+    if _keyword_hit(extra_l):
+        # If the only hit was the word sports alone in a short extra, ignore
+        if re.fullmatch(r"\s*sports\s*", extra_l):
+            return False
+        return True
     return False
 
 

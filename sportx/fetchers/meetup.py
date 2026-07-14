@@ -21,8 +21,12 @@ _FIND_URLS = (
     "https://www.meetup.com/find/?keywords=running&location=in--Bengaluru&source=EVENTS",
     "https://www.meetup.com/find/?keywords=football&location=in--Bengaluru&source=EVENTS",
     "https://www.meetup.com/find/?keywords=tennis&location=in--Bengaluru&source=EVENTS",
+    "https://www.meetup.com/find/?keywords=padel&location=in--Bengaluru&source=EVENTS",
     "https://www.meetup.com/find/?keywords=cycling&location=in--Bengaluru&source=EVENTS",
+    "https://www.meetup.com/find/?keywords=swimming&location=in--Bengaluru&source=EVENTS",
     "https://www.meetup.com/find/?keywords=yoga&location=in--Bengaluru&source=EVENTS",
+    "https://www.meetup.com/find/?keywords=5k&location=in--Bengaluru&source=EVENTS",
+    "https://www.meetup.com/find/?keywords=10k&location=in--Bengaluru&source=EVENTS",
 )
 
 _GENERIC_TITLES = {

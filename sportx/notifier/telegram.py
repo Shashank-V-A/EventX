@@ -14,6 +14,8 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 PLATFORM_LABELS = {
     "allevents": "AllEvents",
     "meetup": "Meetup",
+    "luma": "Luma",
+    "eventbrite": "Eventbrite",
 }
 
 

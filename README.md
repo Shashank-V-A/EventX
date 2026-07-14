@@ -21,8 +21,10 @@ Bangalore **sports** alerts — marathons, cricket, pickleball, badminton, footb
 
 | Source | What it scans |
 |--------|----------------|
-| [AllEvents](https://allevents.in/bangalore/sports) | Bangalore sports / fitness listings |
-| [Meetup](https://www.meetup.com/) | Bengaluru sports keywords (cricket, running, pickleball, …) |
+| [AllEvents](https://allevents.in/bangalore/sports) | Bangalore sports tabs + keyword search (pickleball, marathon, cricket, …) |
+| [Meetup](https://www.meetup.com/) | Bengaluru sports keyword searches |
+| [Luma Bengaluru](https://luma.com/bengaluru) | City discover feed, sports titles only |
+| [Eventbrite](https://www.eventbrite.com/b/india--bangalore/sports-and-fitness/) | Bangalore sports & fitness (when listed) |
 
 Then SportX keeps only sports-looking titles and alerts on Telegram.
 

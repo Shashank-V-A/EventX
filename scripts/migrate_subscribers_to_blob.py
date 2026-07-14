@@ -1,4 +1,4 @@
-"""One-shot: copy local SQLite active subscribers into Upstash Redis."""
+"""One-shot: copy local SQLite active subscribers into Vercel Blob."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from eventx.redis_store import redis_configured, sadd_active  # noqa: E402
+from eventx.blob_store import add_active, blob_configured  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,22 +25,19 @@ def migrate(db_path: Path, bot: str) -> int:
     ).fetchall()
     conn.close()
     for (chat_id,) in rows:
-        sadd_active(bot, str(chat_id))
+        add_active(bot, str(chat_id))
     print(f"{bot}: migrated {len(rows)} active subscriber(s)")
     return len(rows)
 
 
 def main() -> None:
-    if not redis_configured():
-        print(
-            "Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN first.",
-            file=sys.stderr,
-        )
+    if not blob_configured():
+        print("Set BLOB_READ_WRITE_TOKEN first.", file=sys.stderr)
         sys.exit(1)
     total = 0
     total += migrate(ROOT / "data" / "hackathonx_subscribers.db", "hackathonx")
     total += migrate(ROOT / "data" / "sportx_subscribers.db", "sportx")
-    print(f"Done. {total} chat id(s) in Redis.")
+    print(f"Done. {total} chat id(s) in Vercel Blob.")
 
 
 if __name__ == "__main__":

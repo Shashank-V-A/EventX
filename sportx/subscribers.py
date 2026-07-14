@@ -10,12 +10,12 @@ from pathlib import Path
 import httpx
 
 from eventx.commands import handle_command_update
-from eventx.redis_store import (
-    redis_configured,
-    sadd_active,
-    sismember_active,
-    smembers_active,
-    srem_active,
+from eventx.blob_store import (
+    add_active,
+    blob_configured,
+    is_active,
+    list_active,
+    remove_active,
 )
 from sportx.config import BASE_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
@@ -49,13 +49,13 @@ HELP = WELCOME
 class SubscriberStore:
     def __init__(self, db_path: Path = DB_PATH) -> None:
         self.db_path = db_path
-        self.use_redis = redis_configured()
-        if os.getenv("VERCEL") and not self.use_redis:
+        self.use_blob = blob_configured()
+        if os.getenv("VERCEL") and not self.use_blob:
             raise RuntimeError(
-                "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN "
-                "are required on Vercel (SQLite is ephemeral there)"
+                "BLOB_READ_WRITE_TOKEN is required on Vercel "
+                "(SQLite is ephemeral there)"
             )
-        if not self.use_redis:
+        if not self.use_blob:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
             self._init_sqlite()
         self.ensure_admin()
@@ -92,9 +92,9 @@ class SubscriberStore:
         if not TELEGRAM_CHAT_ID:
             return
         chat_id = str(TELEGRAM_CHAT_ID)
-        if self.use_redis:
-            if not sismember_active(BOT, chat_id):
-                sadd_active(BOT, chat_id)
+        if self.use_blob:
+            if not is_active(BOT, chat_id):
+                add_active(BOT, chat_id)
             return
         with self._connect() as conn:
             row = conn.execute(
@@ -104,7 +104,7 @@ class SubscriberStore:
             self.subscribe(chat_id, username="admin", first_name="Admin")
 
     def get_offset(self) -> int:
-        if self.use_redis:
+        if self.use_blob:
             return 0
         with self._connect() as conn:
             row = conn.execute(
@@ -113,7 +113,7 @@ class SubscriberStore:
         return int(row["value"]) if row else 0
 
     def set_offset(self, offset: int) -> None:
-        if self.use_redis:
+        if self.use_blob:
             return
         with self._connect() as conn:
             conn.execute(
@@ -133,10 +133,8 @@ class SubscriberStore:
         first_name: str | None = None,
     ) -> bool:
         chat_id = str(chat_id)
-        if self.use_redis:
-            was_active = sismember_active(BOT, chat_id)
-            sadd_active(BOT, chat_id)
-            return not was_active
+        if self.use_blob:
+            return add_active(BOT, chat_id)
 
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         with self._connect() as conn:
@@ -161,8 +159,8 @@ class SubscriberStore:
 
     def unsubscribe(self, chat_id: str) -> bool:
         chat_id = str(chat_id)
-        if self.use_redis:
-            return srem_active(BOT, chat_id)
+        if self.use_blob:
+            return remove_active(BOT, chat_id)
 
         with self._connect() as conn:
             cur = conn.execute(
@@ -174,8 +172,8 @@ class SubscriberStore:
 
     def list_active_chat_ids(self) -> list[str]:
         self.ensure_admin()
-        if self.use_redis:
-            return smembers_active(BOT)
+        if self.use_blob:
+            return list_active(BOT)
 
         with self._connect() as conn:
             rows = conn.execute(
@@ -262,9 +260,9 @@ def handle_update(update: dict) -> bool:
 def process_commands(*, store: SubscriberStore | None = None) -> int:
     if not TELEGRAM_BOT_TOKEN:
         return 0
-    if redis_configured():
+    if blob_configured():
         print(
-            "  Skipping SportX getUpdates (Redis/webhook mode). "
+            "  Skipping SportX getUpdates (Blob/webhook mode). "
             "Commands are handled by the Vercel webhook."
         )
         return 0

@@ -44,23 +44,24 @@ Anyone can use the bots:
 **Idle “scan done — no new events” messages stay admin-only** (your chat id).
 
 **Commands are instant via Vercel webhooks** (`/api/hackathonx`, `/api/sportx`).  
-Scans stay on GitHub Actions (~6 hours). Both read the same **Upstash Redis** subscriber sets.
+Scans stay on GitHub Actions (~6 hours). Both read the same **Vercel Blob** subscriber JSON.
 
 | Env | Where |
 |-----|--------|
-| `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` | Vercel + GitHub Actions secrets |
+| `BLOB_READ_WRITE_TOKEN` | Vercel + GitHub Actions secrets |
 | Bot tokens + `TELEGRAM_CHAT_ID` | Vercel + GitHub Actions secrets |
 | `TELEGRAM_WEBHOOK_SECRET` | Vercel + local `.env` (for `setWebhook`) |
 
 ```bash
-# 1) Deploy webhooks
+# 1) Create a Blob store in the Vercel dashboard (Storage → Blob)
+# 2) Deploy webhooks
 vercel --prod
 
-# 2) Point Telegram at Vercel (after setting VERCEL_WEBHOOK_BASE_URL)
+# 3) Point Telegram at Vercel (after setting VERCEL_WEBHOOK_BASE_URL)
 python scripts/set_telegram_webhooks.py
 
-# Optional: copy existing local SQLite subscribers into Redis
-python scripts/migrate_subscribers_to_redis.py
+# Optional: copy existing local SQLite subscribers into Blob
+python scripts/migrate_subscribers_to_blob.py
 ```
 
 ## Setup
@@ -120,8 +121,7 @@ Repo secrets:
 | `TELEGRAM_CHAT_ID` | Both (fallback for SportX) |
 | `SPORTX_TELEGRAM_BOT_TOKEN` | SportX |
 | `SPORTX_TELEGRAM_CHAT_ID` | Optional SportX override |
-| `UPSTASH_REDIS_REST_URL` | Scans + Vercel webhooks |
-| `UPSTASH_REDIS_REST_TOKEN` | Scans + Vercel webhooks |
+| `BLOB_READ_WRITE_TOKEN` | Scans + Vercel webhooks (subscriber list) |
 
 Then run **EventX Alerts** and/or **SportX Alerts**.
 

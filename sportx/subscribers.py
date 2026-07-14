@@ -1,15 +1,25 @@
-"""SportX open subscription store + Telegram /start /stop polling."""
+"""SportX open subscription store + Telegram command helpers."""
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import time
 from pathlib import Path
 
 import httpx
 
+from eventx.commands import handle_command_update
+from eventx.redis_store import (
+    redis_configured,
+    sadd_active,
+    sismember_active,
+    smembers_active,
+    srem_active,
+)
 from sportx.config import BASE_DIR, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 
+BOT = "sportx"
 DB_PATH = BASE_DIR / "data" / "sportx_subscribers.db"
 
 WELCOME = (
@@ -17,7 +27,7 @@ WELCOME = (
     "You're subscribed to Bangalore sports alerts "
     "(marathons, cricket, pickleball, badminton, and more).\n\n"
     "You'll get a Telegram message when something new is listed.\n\n"
-    "Commands (replies within a few minutes):\n"
+    "Commands:\n"
     "/start — subscribe\n"
     "/stop — unsubscribe\n"
     "/help — show this message"
@@ -39,15 +49,23 @@ HELP = WELCOME
 class SubscriberStore:
     def __init__(self, db_path: Path = DB_PATH) -> None:
         self.db_path = db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._init()
+        self.use_redis = redis_configured()
+        if os.getenv("VERCEL") and not self.use_redis:
+            raise RuntimeError(
+                "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN "
+                "are required on Vercel (SQLite is ephemeral there)"
+            )
+        if not self.use_redis:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            self._init_sqlite()
+        self.ensure_admin()
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
-    def _init(self) -> None:
+    def _init_sqlite(self) -> None:
         with self._connect() as conn:
             conn.execute(
                 """
@@ -69,13 +87,15 @@ class SubscriberStore:
                 """
             )
             conn.commit()
-        self.ensure_admin()
 
     def ensure_admin(self) -> None:
-        """Seed the owner chat once so they receive alerts without /start."""
         if not TELEGRAM_CHAT_ID:
             return
         chat_id = str(TELEGRAM_CHAT_ID)
+        if self.use_redis:
+            if not sismember_active(BOT, chat_id):
+                sadd_active(BOT, chat_id)
+            return
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT 1 FROM subscribers WHERE chat_id = ?", (chat_id,)
@@ -84,6 +104,8 @@ class SubscriberStore:
             self.subscribe(chat_id, username="admin", first_name="Admin")
 
     def get_offset(self) -> int:
+        if self.use_redis:
+            return 0
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT value FROM bot_state WHERE key = 'update_offset'"
@@ -91,6 +113,8 @@ class SubscriberStore:
         return int(row["value"]) if row else 0
 
     def set_offset(self, offset: int) -> None:
+        if self.use_redis:
+            return
         with self._connect() as conn:
             conn.execute(
                 """
@@ -108,6 +132,12 @@ class SubscriberStore:
         username: str | None = None,
         first_name: str | None = None,
     ) -> bool:
+        chat_id = str(chat_id)
+        if self.use_redis:
+            was_active = sismember_active(BOT, chat_id)
+            sadd_active(BOT, chat_id)
+            return not was_active
+
         now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         with self._connect() as conn:
             existing = conn.execute(
@@ -130,6 +160,10 @@ class SubscriberStore:
         return int(existing["active"] or 0) == 0
 
     def unsubscribe(self, chat_id: str) -> bool:
+        chat_id = str(chat_id)
+        if self.use_redis:
+            return srem_active(BOT, chat_id)
+
         with self._connect() as conn:
             cur = conn.execute(
                 "UPDATE subscribers SET active = 0 WHERE chat_id = ? AND active = 1",
@@ -140,6 +174,9 @@ class SubscriberStore:
 
     def list_active_chat_ids(self) -> list[str]:
         self.ensure_admin()
+        if self.use_redis:
+            return smembers_active(BOT)
+
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT chat_id FROM subscribers WHERE active = 1 ORDER BY joined_at"
@@ -208,8 +245,28 @@ def send_photo_to_chat(chat_id: str, photo_url: str, caption: str) -> bool:
     return True
 
 
+def handle_update(update: dict) -> bool:
+    store = SubscriberStore()
+    return handle_command_update(
+        update,
+        subscribe=store.subscribe,
+        unsubscribe=store.unsubscribe,
+        send=lambda cid, text: send_to_chat(cid, text),
+        welcome=WELCOME,
+        already=ALREADY,
+        goodbye=GOODBYE,
+        help_text=HELP,
+    )
+
+
 def process_commands(*, store: SubscriberStore | None = None) -> int:
     if not TELEGRAM_BOT_TOKEN:
+        return 0
+    if redis_configured():
+        print(
+            "  Skipping SportX getUpdates (Redis/webhook mode). "
+            "Commands are handled by the Vercel webhook."
+        )
         return 0
     store = store or SubscriberStore()
     store.ensure_admin()
@@ -231,28 +288,7 @@ def process_commands(*, store: SubscriberStore | None = None) -> int:
     for update in payload.get("result") or []:
         update_id = int(update["update_id"])
         store.set_offset(update_id + 1)
-        message = update.get("message") or update.get("edited_message") or {}
-        chat = message.get("chat") or {}
-        chat_id = str(chat.get("id") or "")
-        if not chat_id:
-            continue
-        text = (message.get("text") or "").strip()
-        if not text:
-            continue
-        cmd = text.split()[0].split("@")[0].lower()
-        username = (message.get("from") or {}).get("username")
-        first_name = (message.get("from") or {}).get("first_name")
-
-        if cmd in {"/start", "/subscribe"}:
-            is_new = store.subscribe(chat_id, username=username, first_name=first_name)
-            send_to_chat(chat_id, WELCOME if is_new else ALREADY)
-            handled += 1
-        elif cmd in {"/stop", "/unsubscribe"}:
-            store.unsubscribe(chat_id)
-            send_to_chat(chat_id, GOODBYE)
-            handled += 1
-        elif cmd == "/help":
-            send_to_chat(chat_id, HELP)
+        if handle_update(update):
             handled += 1
 
     return handled

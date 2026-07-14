@@ -1,11 +1,10 @@
 name: Subscriber Sync
 
-# Sole getUpdates poller for /start /stop /help (scans do not poll Telegram commands).
+# DEPRECATED for production: Telegram webhooks on Vercel handle /start /stop /help
+# instantly. Keep this workflow_dispatch-only as an emergency getUpdates poller.
+# Do NOT enable a schedule while webhooks are active (conflicts with getUpdates).
 
 on:
-  schedule:
-    # Every 5 minutes — GitHub may delay scheduled runs by a few minutes.
-    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 concurrency:
@@ -26,29 +25,15 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Restore HackathonX subscribers cache
-        uses: actions/cache@v4
-        with:
-          path: data/hackathonx_subscribers.db
-          key: hackathonx-subscribers-${{ github.run_id }}
-          restore-keys: |
-            hackathonx-subscribers-
-
-      - name: Restore SportX subscribers cache
-        uses: actions/cache@v4
-        with:
-          path: data/sportx_subscribers.db
-          key: sportx-subscribers-${{ github.run_id }}
-          restore-keys: |
-            sportx-subscribers-
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Poll Telegram bot commands
+      - name: Poll Telegram bot commands (no-op when Redis/webhook mode)
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           SPORTX_TELEGRAM_BOT_TOKEN: ${{ secrets.SPORTX_TELEGRAM_BOT_TOKEN }}
           SPORTX_TELEGRAM_CHAT_ID: ${{ secrets.SPORTX_TELEGRAM_CHAT_ID }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
         run: python sync_subscribers.py

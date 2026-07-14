@@ -1,4 +1,6 @@
 .env
+.env.local
+.vercel/
 logs/
 __pycache__/
 *.py[cod]

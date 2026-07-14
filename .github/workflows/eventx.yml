@@ -33,15 +33,6 @@ jobs:
           restore-keys: |
             eventx-seen-events-
 
-      # Subscribers are PII — cache only, never commit to the public repo
-      - name: Restore HackathonX subscribers cache
-        uses: actions/cache@v4
-        with:
-          path: data/hackathonx_subscribers.db
-          key: hackathonx-subscribers-${{ github.run_id }}
-          restore-keys: |
-            hackathonx-subscribers-
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -49,6 +40,8 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
           UNSTOP_MAX_PAGES: "10"
           INCLUDE_ONLINE: "false"
         run: python main.py

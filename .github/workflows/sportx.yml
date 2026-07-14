@@ -32,14 +32,6 @@ jobs:
           restore-keys: |
             sportx-seen-events-
 
-      - name: Restore SportX subscribers cache
-        uses: actions/cache@v4
-        with:
-          path: data/sportx_subscribers.db
-          key: sportx-subscribers-${{ github.run_id }}
-          restore-keys: |
-            sportx-subscribers-
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -48,6 +40,8 @@ jobs:
           SPORTX_TELEGRAM_BOT_TOKEN: ${{ secrets.SPORTX_TELEGRAM_BOT_TOKEN }}
           SPORTX_TELEGRAM_CHAT_ID: ${{ secrets.SPORTX_TELEGRAM_CHAT_ID }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
         run: python sportx_main.py
 
       - name: Persist SportX seen-events database

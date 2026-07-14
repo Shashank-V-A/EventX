@@ -11,13 +11,20 @@ Two Bangalore Telegram alert bots in one repo:
 
 Bangalore **hackathon** alerts — software, hardware, buildathons, ideathons, video hacks, game jams.
 
-**Sources:** Unstop · Devfolio · Devpost · MLH · HackerEarth · Hack2Skill · DoraHacks · optional Luma URLs
+**Sources:** Unstop · Devfolio · Devpost · MLH · HackerEarth · Hack2Skill · DoraHacks · [Luma Bengaluru](https://luma.com/bengaluru)
 
 ## SportX
 
 Bangalore **sports** alerts — marathons, cricket, pickleball, badminton, football, tennis, cycling, and more.
 
-**Sources:** AllEvents · Meetup
+**Sources:**
+
+| Source | What it scans |
+|--------|----------------|
+| [AllEvents](https://allevents.in/bangalore/sports) | Bangalore sports / fitness listings |
+| [Meetup](https://www.meetup.com/) | Bengaluru sports keywords (cricket, running, pickleball, …) |
+
+Then SportX keeps only sports-looking titles and alerts on Telegram.
 
 ## Setup
 
@@ -85,4 +92,4 @@ Then run **EventX Alerts** and/or **SportX Alerts**.
 | Unstop | India hackathons |
 | Devfolio / Devpost / MLH | Campus & sponsored hacks |
 | HackerEarth / Hack2Skill / DoraHacks | More challenges |
-| Luma | Optional curated URLs only (`LUMA_EVENT_URLS`) |
+| Luma | [luma.com/bengaluru](https://luma.com/bengaluru) discover feed (hackathons only; extra URLs via `LUMA_EVENT_URLS`) |

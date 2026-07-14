@@ -22,7 +22,7 @@ FETCHERS: list[tuple[str, Fetcher]] = [
     ("hack2skill", fetch_hack2skill_hackathons),
     ("dorahacks", fetch_dorahacks_hackathons),
     ("mlh", fetch_mlh_hackathons),
-    ("luma", fetch_luma_hackathons),  # only if LUMA_EVENT_URLS points at hackathons
+    ("luma", fetch_luma_hackathons),  # default: luma.com/bengaluru (hackathons filtered later)
 ]
 
 

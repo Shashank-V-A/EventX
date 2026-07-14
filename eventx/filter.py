@@ -111,17 +111,32 @@ def is_bangalore_match(event: HackathonEvent) -> bool:
 
 def is_hackathon_match(event: HackathonEvent) -> bool:
     """HackathonX: only software/hardware/buildathon/ideathon/etc. style events."""
-    blob = " ".join(
+    title_blob = " ".join(
         [
             event.title or "",
             event.registration_url or "",
-            event.category or "",
-            event.platform or "",
         ]
     ).lower()
 
-    if any(blocker in blob for blocker in _NON_HACKATHON_BLOCKERS):
+    if any(blocker in title_blob for blocker in _NON_HACKATHON_BLOCKERS):
         return False
+
+    # Luma city feeds mix meetups/talks/hackathons — require title/url keywords only
+    if event.platform == "luma":
+        return _contains_keyword(title_blob, HACKATHON_KEYWORDS)
+
+    # Ignore generic inferred category "hackathon" (not a real signal)
+    category = (event.category or "").lower()
+    if category == "hackathon":
+        category = ""
+
+    blob = " ".join(
+        [
+            title_blob,
+            category,
+            event.platform or "",
+        ]
+    ).lower()
 
     if _contains_keyword(blob, HACKATHON_KEYWORDS):
         return True
@@ -129,10 +144,6 @@ def is_hackathon_match(event: HackathonEvent) -> bool:
     # Native hackathon feeds (Unstop /hackathons, Devfolio, MLH, …)
     if event.platform in _HACKATHON_NATIVE_PLATFORMS:
         return True
-
-    # Curated Luma URLs must still look like a hackathon
-    if event.platform == "luma":
-        return _contains_keyword(blob, HACKATHON_KEYWORDS)
 
     return False
 

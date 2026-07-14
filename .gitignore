@@ -6,6 +6,7 @@ __pycache__/
 venv/
 sample_*.json
 tmp_*
-# Keep events.db as a seed; Actions cache updates it between runs
+# Keep seen DBs as seed; Actions commits updates between runs
 !data/
 !data/events.db
+!data/sportx_events.db

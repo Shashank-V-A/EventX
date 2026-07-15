@@ -121,8 +121,9 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
         print("Sent idle scan heartbeat (no new events).")
 
     for event, kind, fingerprint in reminders:
+        # Claim before send so a partial failure can't double-notify next run.
+        store.mark_reminder(fingerprint, kind, also=event.dedupe_key)
         notify_events([event], kind=kind)
-        store.mark_reminder(fingerprint, kind)
         sent += 1
     if reminders:
         print(f"Sent {len(reminders)} reminder(s).")

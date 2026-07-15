@@ -157,13 +157,17 @@ class EventStore:
             ).fetchone()
             return row is not None
 
-    def mark_reminder(self, fingerprint: str, kind: str) -> None:
+    def mark_reminder(self, fingerprint: str, kind: str, *, also: str | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
+        keys = [fingerprint]
+        if also and also != fingerprint:
+            keys.append(also)
         with self._connect() as conn:
-            conn.execute(
-                "INSERT OR IGNORE INTO reminders_sent (fingerprint, kind, sent_at) VALUES (?, ?, ?)",
-                (fingerprint, kind, now),
-            )
+            for key in keys:
+                conn.execute(
+                    "INSERT OR IGNORE INTO reminders_sent (fingerprint, kind, sent_at) VALUES (?, ?, ?)",
+                    (key, kind, now),
+                )
             conn.commit()
 
     def _row_to_event(self, row: sqlite3.Row, deadline: datetime) -> SportEvent:
@@ -186,10 +190,16 @@ class EventStore:
         )
 
     def events_needing_reminders(self) -> list[tuple[SportEvent, str, str]]:
-        """Return (event, kind, fingerprint) for 48h and 24h windows."""
+        """Return (event, kind, fingerprint) for exclusive 48h / 24h windows.
+
+        Windows (same as HackathonX):
+          - 48h: more than 24h and at most 48h away
+          - 24h: at most 24h away
+        Older overlapping logic (<=48h AND <=24h) double-fired reminders.
+        """
         now = datetime.now(timezone.utc)
-        windows = [("48h", timedelta(hours=48)), ("24h", timedelta(hours=24))]
         out: list[tuple[SportEvent, str, str]] = []
+        seen_keys: set[tuple[str, str]] = set()
         with self._connect() as conn:
             rows = conn.execute(
                 """
@@ -206,13 +216,30 @@ class EventStore:
                     deadline = deadline.replace(tzinfo=timezone.utc)
             except (TypeError, ValueError):
                 continue
+            delta = deadline - now
+            if delta <= timedelta(0):
+                continue
+
+            hours_left = delta.total_seconds() / 3600
+            if hours_left <= 24:
+                kind = "24h"
+            elif hours_left <= 48:
+                kind = "48h"
+            else:
+                continue
+
             fingerprint = row["fingerprint"] or row["dedupe_key"]
-            for kind, window in windows:
-                delta = deadline - now
-                if timedelta(0) < delta <= window:
-                    if self.reminder_already_sent(fingerprint, kind):
-                        continue
-                    out.append((self._row_to_event(row, deadline), kind, fingerprint))
+            dedupe_key = str(row["dedupe_key"] or fingerprint)
+            # Claim by both identities so URL/title fingerprint churn can't re-fire.
+            if self.reminder_already_sent(fingerprint, kind) or self.reminder_already_sent(
+                dedupe_key, kind
+            ):
+                continue
+            key = (fingerprint, kind)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            out.append((self._row_to_event(row, deadline), kind, fingerprint))
         return out
 
     def record_fetch_result(self, platform: str, ok: bool, error: str | None = None) -> int:

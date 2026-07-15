@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timezone
 
 from eventx.config import BANGALORE_KEYWORDS, HACKATHON_KEYWORDS, INCLUDE_ONLINE
 from eventx.models import HackathonEvent
@@ -163,3 +164,20 @@ def filter_bangalore(events: list[HackathonEvent]) -> list[HackathonEvent]:
 
 def filter_hackathons(events: list[HackathonEvent]) -> list[HackathonEvent]:
     return [e for e in events if is_hackathon_match(e)]
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def is_open_event(event: HackathonEvent) -> bool:
+    """Drop listings whose registration/end time is already past."""
+    if event.deadline is None:
+        return True
+    return _as_utc(event.deadline) > datetime.now(timezone.utc)
+
+
+def filter_open_events(events: list[HackathonEvent]) -> list[HackathonEvent]:
+    return [e for e in events if is_open_event(e)]

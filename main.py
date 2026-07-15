@@ -3,8 +3,8 @@ import sys
 
 from eventx.blob_store import require_shared_store
 from eventx.dedupe import merge_duplicate_events
-from eventx.fetchers import fetch_all_hackathons
-from eventx.filter import filter_bangalore, filter_hackathons
+from eventx.fetchers import FETCHERS, fetch_all_hackathons
+from eventx.filter import filter_bangalore, filter_hackathons, filter_open_events
 from eventx.notifier.telegram import (
     notify_events,
     notify_health_alerts,
@@ -19,6 +19,7 @@ from eventx.storage import (
     mark_health_alerted,
     mark_notified,
     mark_reminder_sent,
+    prune_fetch_failures,
 )
 from eventx.subscribers import SubscriberStore
 
@@ -36,6 +37,8 @@ def run(
     print(f"  Subscribers: {store.count_active()} (Vercel Blob)")
     print(f"  Seen events in database: {count_seen()}")
 
+    prune_fetch_failures({name for name, _ in FETCHERS})
+
     by_platform, failed = fetch_all_hackathons(max_pages=max_pages)
     all_events = []
     for platform, events in by_platform.items():
@@ -52,7 +55,10 @@ def run(
     hackathons = filter_hackathons(bangalore_events)
     print(f"  {len(hackathons)} match hackathon filter")
 
-    deduped = merge_duplicate_events(hackathons)
+    open_events = filter_open_events(hackathons)
+    print(f"  {len(open_events)} still open (deadline not past)")
+
+    deduped = merge_duplicate_events(open_events)
     print(f"  {len(deduped)} after cross-platform dedupe")
 
     new_events = get_new_events(deduped)

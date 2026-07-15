@@ -220,6 +220,20 @@ def record_fetch_failure(platform: str, error: str) -> int:
         return count
 
 
+def prune_fetch_failures(active_platforms: set[str] | frozenset[str]) -> None:
+    """Drop health rows for sources no longer scraped (e.g. removed HackerEarth)."""
+    with _connect() as conn:
+        rows = conn.execute("SELECT platform FROM fetch_failures").fetchall()
+        stale = [r["platform"] for r in rows if r["platform"] not in active_platforms]
+        if not stale:
+            return
+        conn.executemany(
+            "DELETE FROM fetch_failures WHERE platform=?",
+            [(p,) for p in stale],
+        )
+        conn.commit()
+
+
 def get_health_alerts(threshold: int = 2) -> list[tuple[str, int, str]]:
     """Platforms that have failed `threshold` times and not yet alerted."""
     with _connect() as conn:

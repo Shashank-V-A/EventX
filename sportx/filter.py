@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 
 from sportx.config import BANGALORE_KEYWORDS, NON_SPORT_BLOCKERS, SPORT_KEYWORDS
 from sportx.models import SportEvent
@@ -110,12 +111,27 @@ def is_bangalore_event(event: SportEvent) -> bool:
     return mentions_bangalore(event.location) or mentions_bangalore(event.title)
 
 
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def is_upcoming_event(event: SportEvent) -> bool:
+    """Drop sports listings whose start/end time is already past."""
+    if event.deadline is None:
+        return True
+    return _as_utc(event.deadline) > datetime.now(timezone.utc)
+
+
 def filter_events(events: list[SportEvent]) -> list[SportEvent]:
     out: list[SportEvent] = []
     for event in events:
         if not is_bangalore_event(event):
             continue
         if not is_sports_event(event.title, event.location or ""):
+            continue
+        if not is_upcoming_event(event):
             continue
         out.append(event)
     return out

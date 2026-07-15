@@ -4,7 +4,6 @@ from eventx.fetchers.devfolio import fetch_devfolio_hackathons
 from eventx.fetchers.devpost import fetch_devpost_hackathons
 from eventx.fetchers.dorahacks import fetch_dorahacks_hackathons
 from eventx.fetchers.hack2skill import fetch_hack2skill_hackathons
-from eventx.fetchers.hackerearth import fetch_hackerearth_hackathons
 from eventx.fetchers.luma import fetch_luma_hackathons
 from eventx.fetchers.mlh import fetch_mlh_hackathons
 from eventx.fetchers.unstop import fetch_unstop_hackathons
@@ -14,11 +13,11 @@ from eventx.storage import record_fetch_failure, record_fetch_success
 Fetcher = Callable[[], list[HackathonEvent]]
 
 # HackathonX — hackathon sources only (no meetups / concerts / workshops)
+# HackerEarth omitted: consistently returns 403 to the scraper.
 FETCHERS: list[tuple[str, Fetcher]] = [
     ("unstop", lambda: fetch_unstop_hackathons()),
     ("devfolio", fetch_devfolio_hackathons),
     ("devpost", fetch_devpost_hackathons),
-    ("hackerearth", fetch_hackerearth_hackathons),
     ("hack2skill", fetch_hack2skill_hackathons),
     ("dorahacks", fetch_dorahacks_hackathons),
     ("mlh", fetch_mlh_hackathons),

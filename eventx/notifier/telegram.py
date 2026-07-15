@@ -1,3 +1,5 @@
+import re
+
 from eventx.category import category_label
 from eventx.config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from eventx.models import HackathonEvent
@@ -77,10 +79,12 @@ def format_message(event: HackathonEvent, *, kind: str = "new") -> str:
 
 def format_health_alert(platform: str, failures: int, error: str) -> str:
     label = PLATFORM_LABELS.get(platform, platform.title())
+    # Strip URLs so Telegram does not attach noisy link previews.
+    clean = re.sub(r"https?://\S+", "[url]", error[:300])
     return (
         f"⚠️ <b>HackathonX health check</b>\n\n"
         f"Source <b>{_escape(label)}</b> failed {failures} runs in a row.\n"
-        f"Last error: {_escape(error[:300]) or 'unknown'}\n\n"
+        f"Last error: {_escape(clean) or 'unknown'}\n\n"
         f"New hackathon alerts from this source may be missing until it recovers."
     )
 
@@ -91,7 +95,7 @@ def send_telegram_message(text: str) -> None:
         raise ValueError(
             "Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in your .env file"
         )
-    send_to_chat(str(TELEGRAM_CHAT_ID), text, disable_preview=False)
+    send_to_chat(str(TELEGRAM_CHAT_ID), text, disable_preview=True)
 
 
 def notify_events(events: list[HackathonEvent], *, kind: str = "new") -> int:

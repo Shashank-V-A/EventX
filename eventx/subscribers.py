@@ -24,10 +24,9 @@ DB_PATH = BASE_DIR / "data" / "hackathonx_subscribers.db"
 
 WELCOME = (
     "🚀 <b>Welcome to HackathonX</b>\n\n"
-    "You're subscribed to hackathon alerts:\n"
-    "• Bangalore / Bengaluru (offline)\n"
-    "• Online (remote)\n"
-    "• Hybrid (online rounds → offline finals, incl. Bangalore)\n\n"
+    "You're subscribed to <b>Bangalore</b> hackathon alerts.\n"
+    "Early rounds may be online; offline / finals must be in Bangalore "
+    "(not Pune, Delhi, Mumbai, etc.).\n\n"
     "Software, hardware, buildathons, ideathons, and more.\n"
     "You'll get a Telegram message when something new is listed.\n\n"
     "Commands:\n"
@@ -38,7 +37,8 @@ WELCOME = (
 
 ALREADY = (
     "✅ You're already subscribed to <b>HackathonX</b>.\n"
-    "New Bangalore, online, and hybrid hackathons will appear here automatically."
+    "New Bangalore hackathons (online early rounds OK if finals are here) "
+    "will appear here automatically."
 )
 
 GOODBYE = (

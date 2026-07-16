@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timezone
 
-from eventx.config import BANGALORE_KEYWORDS, HACKATHON_KEYWORDS, INCLUDE_ONLINE
+from eventx.config import BANGALORE_KEYWORDS, HACKATHON_KEYWORDS
 from eventx.models import HackathonEvent
 
 # Highway names that mention Bengaluru but are not in Bangalore
@@ -102,6 +102,36 @@ def _location_match(location: str) -> bool:
     return True
 
 
+def _event_venue_text(event: HackathonEvent) -> str:
+    return " ".join(
+        [
+            event.title or "",
+            event.location or "",
+            event.organisation or "",
+            event.registration_url or "",
+            event.mode or "",
+        ]
+    ).lower()
+
+
+def _mentions_other_city(text: str) -> bool:
+    return any(region in text for region in CONTRADICTORY_REGIONS)
+
+
+def _location_is_bangalore_only(location: str) -> bool:
+    """True when location points at Bangalore and not another city venue."""
+    loc = location.lower()
+    if not _contains_keyword(loc, BANGALORE_KEYWORDS):
+        return False
+    for pattern in HIGHWAY_FALSE_POSITIVES:
+        if pattern.search(loc):
+            return False
+    if _mentions_other_city(loc):
+        # e.g. "Bengaluru & Pune finals" — not Bangalore-only
+        return False
+    return True
+
+
 def _normalized_mode(event: HackathonEvent) -> str:
     mode = (event.mode or "").strip().lower()
     if mode in {"online", "virtual", "remote"}:
@@ -111,7 +141,7 @@ def _normalized_mode(event: HackathonEvent) -> str:
     if mode in {"offline", "in-person", "in_person", "physical"}:
         return "offline"
     location = (event.location or "").strip().lower()
-    if location in {"online", "everywhere", "virtual"}:
+    if location in {"online", "everywhere", "virtual", "remote"}:
         return "online"
     if "hybrid" in location:
         return "hybrid"
@@ -120,39 +150,32 @@ def _normalized_mode(event: HackathonEvent) -> str:
 
 def is_bangalore_match(event: HackathonEvent) -> bool:
     """
-    Keep events that are:
-    - Offline / listed in Bangalore, or
-    - Fully online (when INCLUDE_ONLINE), or
-    - Hybrid (R1 online → later offline rounds; often city finals in Bangalore)
+    Bangalore-relevant hackathons only:
+    - Offline / finals in Bangalore
+    - Early rounds may be online (hybrid OK) only if offline side is Bangalore
+    - Reject finals / offline rounds in Pune, Delhi, Mumbai, etc.
+    - Reject pan-India online with no Bangalore link
     """
-    if _strong_match(event):
-        return True
-
     location = event.location or ""
-    if location and _location_match(location):
-        return True
+    venue = _event_venue_text(event)
 
-    mode = _normalized_mode(event)
+    has_bangalore = _strong_match(event) or (
+        bool(location) and _location_match(location)
+    )
+    other_city = _mentions_other_city(venue)
 
-    # Pure online listings (India-wide / remote hackathons)
-    if INCLUDE_ONLINE and mode == "online":
-        return True
+    # Explicit other-city venue and no Bangalore → never
+    if other_city and not has_bangalore:
+        return False
 
-    # Hybrid: round 1 online, later rounds often offline in a city (incl. Bangalore)
-    if mode == "hybrid":
-        if INCLUDE_ONLINE:
+    # Multi-city offline/hybrid (Bangalore + Pune/Delhi/…) → not Bangalore-only
+    if other_city and has_bangalore:
+        if location and _location_is_bangalore_only(location):
+            # Location is cleanly Bangalore; other city only in title/org noise
             return True
-        blob = " ".join(
-            [
-                event.title or "",
-                location,
-                event.organisation or "",
-                event.registration_url or "",
-            ]
-        )
-        return _contains_keyword(blob, BANGALORE_KEYWORDS)
+        return False
 
-    return False
+    return has_bangalore
 
 
 def is_hackathon_match(event: HackathonEvent) -> bool:

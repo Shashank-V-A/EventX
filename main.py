@@ -50,7 +50,7 @@ def run(
     print(f"  total: {len(all_events)} open listings")
 
     bangalore_events = filter_bangalore(all_events)
-    print(f"  {len(bangalore_events)} match Bangalore / online / hybrid filter")
+    print(f"  {len(bangalore_events)} match Bangalore venue filter")
 
     hackathons = filter_hackathons(bangalore_events)
     print(f"  {len(hackathons)} match hackathon filter")

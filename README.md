@@ -104,7 +104,7 @@ python sportx_main.py
 Every ~6 hours via GitHub Actions (separate workflows):
 
 1. Scans the right platforms for that bot
-2. Keeps Bangalore / Bengaluru listings (HackathonX also keeps **online** + **hybrid**)
+2. Keeps **Bangalore** listings (early rounds may be online; offline/finals must be Bangalore — not other cities)
 3. Applies hackathon **or** sports filters
 4. Dedupes → **one** Telegram message per listing
 5. Reminds at **48h** / **24h** when a date is known

@@ -42,7 +42,7 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           UNSTOP_MAX_PAGES: "10"
-          INCLUDE_ONLINE: "false"
+          INCLUDE_ONLINE: "true"
         run: python main.py
 
       - name: Persist seen-events database

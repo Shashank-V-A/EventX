@@ -95,24 +95,38 @@ def get_new_events(events: list[HackathonEvent]) -> list[HackathonEvent]:
     ]
 
 
-def mark_notified(events: list[HackathonEvent]) -> None:
+def mark_notified(
+    events: list[HackathonEvent],
+    *,
+    suppress_reminders: bool = False,
+) -> None:
+    """
+    Persist events as already notified.
+
+    suppress_reminders=True is for backlog seeding (--mark-seen) so we do not
+    fire 24h/48h reminders for listings users never received as a new alert.
+    """
     if not events:
         return
 
     now = datetime.now().isoformat()
+    rem48 = 1 if suppress_reminders else 0
+    rem24 = 1 if suppress_reminders else 0
     with _connect() as conn:
         conn.executemany(
             """
             INSERT INTO seen_events
                 (dedupe_key, title, platform, registration_url, notified_at,
                  fingerprint, deadline, reminder_48h_sent, reminder_24h_sent)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(dedupe_key) DO UPDATE SET
                 title=excluded.title,
                 platform=excluded.platform,
                 registration_url=excluded.registration_url,
                 fingerprint=excluded.fingerprint,
-                deadline=excluded.deadline
+                deadline=excluded.deadline,
+                reminder_48h_sent=MAX(seen_events.reminder_48h_sent, excluded.reminder_48h_sent),
+                reminder_24h_sent=MAX(seen_events.reminder_24h_sent, excluded.reminder_24h_sent)
             """,
             [
                 (
@@ -123,6 +137,8 @@ def mark_notified(events: list[HackathonEvent]) -> None:
                     now,
                     e.fingerprint,
                     e.deadline.isoformat() if e.deadline else None,
+                    rem48,
+                    rem24,
                 )
                 for e in events
             ],

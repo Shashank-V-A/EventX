@@ -102,7 +102,29 @@ def _location_match(location: str) -> bool:
     return True
 
 
+def _normalized_mode(event: HackathonEvent) -> str:
+    mode = (event.mode or "").strip().lower()
+    if mode in {"online", "virtual", "remote"}:
+        return "online"
+    if mode in {"hybrid", "blended"}:
+        return "hybrid"
+    if mode in {"offline", "in-person", "in_person", "physical"}:
+        return "offline"
+    location = (event.location or "").strip().lower()
+    if location in {"online", "everywhere", "virtual"}:
+        return "online"
+    if "hybrid" in location:
+        return "hybrid"
+    return mode or "unknown"
+
+
 def is_bangalore_match(event: HackathonEvent) -> bool:
+    """
+    Keep events that are:
+    - Offline / listed in Bangalore, or
+    - Fully online (when INCLUDE_ONLINE), or
+    - Hybrid (R1 online → later offline rounds; often city finals in Bangalore)
+    """
     if _strong_match(event):
         return True
 
@@ -110,11 +132,25 @@ def is_bangalore_match(event: HackathonEvent) -> bool:
     if location and _location_match(location):
         return True
 
-    if INCLUDE_ONLINE and event.mode == "online" and _contains_keyword(
-        (event.title or "") + " " + (event.registration_url or ""),
-        BANGALORE_KEYWORDS,
-    ):
+    mode = _normalized_mode(event)
+
+    # Pure online listings (India-wide / remote hackathons)
+    if INCLUDE_ONLINE and mode == "online":
         return True
+
+    # Hybrid: round 1 online, later rounds often offline in a city (incl. Bangalore)
+    if mode == "hybrid":
+        if INCLUDE_ONLINE:
+            return True
+        blob = " ".join(
+            [
+                event.title or "",
+                location,
+                event.organisation or "",
+                event.registration_url or "",
+            ]
+        )
+        return _contains_keyword(blob, BANGALORE_KEYWORDS)
 
     return False
 

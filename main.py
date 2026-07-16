@@ -50,7 +50,7 @@ def run(
     print(f"  total: {len(all_events)} open listings")
 
     bangalore_events = filter_bangalore(all_events)
-    print(f"  {len(bangalore_events)} match Bangalore filter")
+    print(f"  {len(bangalore_events)} match Bangalore / online / hybrid filter")
 
     hackathons = filter_hackathons(bangalore_events)
     print(f"  {len(hackathons)} match hackathon filter")
@@ -99,7 +99,7 @@ def run(
         return 0
 
     if mark_seen:
-        mark_notified(new_events)
+        mark_notified(new_events, suppress_reminders=True)
         print(f"Marked {len(new_events)} event(s) as seen (no Telegram messages).")
         print(f"  Seen events in database: {count_seen()}")
         return 0

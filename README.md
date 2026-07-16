@@ -82,7 +82,7 @@ SPORTX_TELEGRAM_BOT_TOKEN=...       # SportX (@Sportx_va_bot)
 TELEGRAM_CHAT_ID=...                # shared chat is fine
 UNSTOP_MAX_PAGES=10
 UNSTOP_TYPES=hackathons
-INCLUDE_ONLINE=false
+INCLUDE_ONLINE=true
 ```
 
 Run:
@@ -104,7 +104,7 @@ python sportx_main.py
 Every ~6 hours via GitHub Actions (separate workflows):
 
 1. Scans the right platforms for that bot
-2. Keeps Bangalore / Bengaluru listings
+2. Keeps Bangalore / Bengaluru listings (HackathonX also keeps **online** + **hybrid**)
 3. Applies hackathon **or** sports filters
 4. Dedupes → **one** Telegram message per listing
 5. Reminds at **48h** / **24h** when a date is known

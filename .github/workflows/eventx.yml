@@ -42,21 +42,28 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
           UNSTOP_MAX_PAGES: "10"
-          INCLUDE_ONLINE: "true"
         run: python main.py
 
       - name: Persist seen-events database
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git pull --rebase --autostash origin main || true
+          git pull --rebase --autostash origin main
           git add data/events.db
           if git diff --staged --quiet; then
             echo "No database changes to commit."
           else
             git commit -m "chore: update seen-events database [skip ci]"
+            pushed=0
             for i in 1 2 3; do
-              git pull --rebase --autostash origin main && git push && break
+              if git pull --rebase --autostash origin main && git push; then
+                pushed=1
+                break
+              fi
               sleep 5
             done
+            if [ "$pushed" -ne 1 ]; then
+              echo "Failed to push seen-events database after retries."
+              exit 1
+            fi
           fi

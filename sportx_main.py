@@ -54,8 +54,10 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
             store.record_fetch_result(platform, ok=True)
         else:
             print(f"  {platform}: FAILED — {err}")
-            consecutive = store.record_fetch_result(platform, ok=False, error=str(err))
-            if consecutive >= 2:
+            consecutive, should_alert = store.record_fetch_result(
+                platform, ok=False, error=str(err)
+            )
+            if should_alert:
                 health.append((platform, consecutive, str(err)))
 
     filtered = filter_events(raw)
@@ -70,7 +72,15 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
     new_events = [e for e in deduped if not store.has_seen(e)]
     print(f"  {len(new_events)} are new (not yet notified)")
 
+    live_fps = {e.fingerprint for e in deduped}
+    live_urls = {e.registration_url.rstrip("/") for e in deduped if e.registration_url}
     reminders = _enrich_reminders_from_live(store.events_needing_reminders(), deduped)
+    # Only remind for listings still present in this scan's filtered set.
+    reminders = [
+        (e, k, fp)
+        for e, k, fp in reminders
+        if fp in live_fps or e.registration_url.rstrip("/") in live_urls
+    ]
     print(f"  {len(reminders)} reminder(s) due")
 
     if dry_run:
@@ -101,7 +111,7 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
                 print(f"  • {platform} failed {failures}x: {error[:120]}")
         if not new_events and not reminders and not health:
             print("Nothing new to send (would send idle heartbeat).")
-        elif not new_events:
+        elif not new_events and not reminders:
             print("\n--- Dry run: would send idle heartbeat (no new events) ---")
         return 0
 
@@ -112,13 +122,10 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
 
     sent = 0
     if new_events:
-        sent += notify_events(new_events)
+        # Claim before send so a crash after Telegram cannot re-alert next run.
         store.mark_many_seen(new_events)
+        sent += notify_events(new_events)
         print(f"Sent {len(new_events)} new sports alert(s).")
-    else:
-        notify_scan_idle()
-        sent += 1
-        print("Sent idle scan heartbeat (no new events).")
 
     for event, kind, fingerprint in reminders:
         # Claim before send so a partial failure can't double-notify next run.
@@ -130,8 +137,14 @@ def run(*, dry_run: bool = False, mark_seen: bool = False) -> int:
 
     if health:
         notify_health_alerts(health)
+        store.mark_health_alerted([p for p, _, _ in health])
         sent += len(health)
         print(f"Sent {len(health)} health alert(s).")
+
+    if not new_events and not reminders:
+        notify_scan_idle()
+        sent += 1
+        print("Sent idle scan heartbeat (no new events).")
 
     return sent
 

@@ -198,9 +198,10 @@ def _venue_location(venue: dict, group: dict) -> str:
     bits = [
         venue.get("name"),
         venue.get("address"),
-        venue.get("city") or group.get("city") or "Bengaluru",
+        venue.get("city") or group.get("city"),
     ]
-    return ", ".join(re.sub(r"\s+", " ", str(b)).strip() for b in bits if b)
+    cleaned = [re.sub(r"\s+", " ", str(b)).strip() for b in bits if b]
+    return ", ".join(cleaned) if cleaned else "Bengaluru"
 
 
 def fetch_meetup_sports() -> list[SportEvent]:
@@ -251,11 +252,12 @@ def fetch_meetup_sports() -> list[SportEvent]:
                             str(group.get("city") or ""),
                             group_name,
                             title,
-                            "Bengaluru",
                         ],
                     )
                 )
 
+                # Find pages are Bangalore-scoped; still require a real geo signal
+                # (do not invent "Bengaluru" into every listing).
                 if not (
                     mentions_bangalore(city_blob) or "bengaluru" in page_url.lower()
                 ):

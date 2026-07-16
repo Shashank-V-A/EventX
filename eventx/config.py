@@ -12,7 +12,6 @@ DB_PATH = DATA_DIR / "events.db"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 UNSTOP_MAX_PAGES = int(os.getenv("UNSTOP_MAX_PAGES", "10"))
-INCLUDE_ONLINE = os.getenv("INCLUDE_ONLINE", "true").lower() in ("1", "true", "yes")
 
 # HackathonX: Unstop hackathons only (no workshops/conferences/quizzes)
 _DEFAULT_UNSTOP_TYPES = "hackathons"

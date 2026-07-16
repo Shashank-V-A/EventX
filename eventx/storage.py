@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 
 from eventx.config import DB_PATH, DATA_DIR
 from eventx.models import HackathonEvent
@@ -148,7 +148,7 @@ def mark_notified(
 
 def get_due_reminders(events_by_key: dict[str, HackathonEvent]) -> list[tuple[HackathonEvent, str]]:
     """Return (event, kind) where kind is '48h' or '24h'."""
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     due: list[tuple[HackathonEvent, str]] = []
 
     with _connect() as conn:
@@ -167,8 +167,10 @@ def get_due_reminders(events_by_key: dict[str, HackathonEvent]) -> list[tuple[Ha
         except ValueError:
             continue
 
-        if deadline.tzinfo is not None:
-            deadline = deadline.replace(tzinfo=None)
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+        else:
+            deadline = deadline.astimezone(timezone.utc)
 
         if deadline <= now:
             continue

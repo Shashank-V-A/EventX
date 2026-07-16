@@ -13,8 +13,14 @@ app = FastAPI(title="EventX Telegram webhooks")
 
 
 def _check_secret(secret_header: str | None) -> None:
-    expected = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+    expected = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+    # On Vercel, refuse unauthenticated webhooks so anyone cannot forge /start.
     if not expected:
+        if os.getenv("VERCEL"):
+            raise HTTPException(
+                status_code=500,
+                detail="TELEGRAM_WEBHOOK_SECRET is not configured",
+            )
         return
     if secret_header != expected:
         raise HTTPException(status_code=401, detail="unauthorized")

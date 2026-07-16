@@ -82,7 +82,8 @@ SPORTX_TELEGRAM_BOT_TOKEN=...       # SportX (@Sportx_va_bot)
 TELEGRAM_CHAT_ID=...                # shared chat is fine
 UNSTOP_MAX_PAGES=10
 UNSTOP_TYPES=hackathons
-INCLUDE_ONLINE=true
+TELEGRAM_WEBHOOK_SECRET=...         # required on Vercel
+BLOB_READ_WRITE_TOKEN=...           # shared subscribers (Vercel + Actions)
 ```
 
 Run:

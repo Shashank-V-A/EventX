@@ -94,7 +94,7 @@ def run(
                 print(f"  • {platform} failed {failures}x: {error[:120]}")
         if not new_events and not reminders and not health:
             print("Nothing new to send (would send idle heartbeat).")
-        elif not new_events:
+        elif not new_events and not reminders:
             print("\n--- Dry run: would send idle heartbeat (no new events) ---")
         return 0
 
@@ -107,20 +107,22 @@ def run(
     sent = 0
 
     if new_events:
-        sent += notify_events(new_events)
+        # Claim before send so a crash after Telegram cannot re-alert next run.
         mark_notified(new_events)
+        sent += notify_events(new_events)
         print(f"Sent {len(new_events)} new hackathon alert(s).")
-    else:
-        notify_scan_idle()
-        sent += 1
-        print("Sent idle scan heartbeat (no new events).")
 
     for event, kind in reminders:
-        notify_events([event], kind=kind)
         mark_reminder_sent(event, kind)
+        notify_events([event], kind=kind)
         sent += 1
     if reminders:
         print(f"Sent {len(reminders)} deadline reminder(s).")
+
+    if not new_events and not reminders:
+        notify_scan_idle()
+        sent += 1
+        print("Sent idle scan heartbeat (no new events).")
 
     if health:
         notify_health_alerts(health)

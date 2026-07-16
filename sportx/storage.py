@@ -79,10 +79,19 @@ class EventStore:
                     platform TEXT PRIMARY KEY,
                     consecutive INTEGER NOT NULL DEFAULT 0,
                     last_error TEXT,
-                    updated_at TEXT NOT NULL
+                    updated_at TEXT NOT NULL,
+                    alerted INTEGER NOT NULL DEFAULT 0
                 )
                 """
             )
+            cols = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(fetch_failures)").fetchall()
+            }
+            if "alerted" not in cols:
+                conn.execute(
+                    "ALTER TABLE fetch_failures ADD COLUMN alerted INTEGER NOT NULL DEFAULT 0"
+                )
             conn.commit()
 
     def has_seen(self, event: SportEvent) -> bool:
@@ -242,29 +251,37 @@ class EventStore:
             out.append((self._row_to_event(row, deadline), kind, fingerprint))
         return out
 
-    def record_fetch_result(self, platform: str, ok: bool, error: str | None = None) -> int:
+    def record_fetch_result(
+        self, platform: str, ok: bool, error: str | None = None
+    ) -> tuple[int, bool]:
+        """Returns (consecutive_failures, should_alert_admin)."""
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             if ok:
                 conn.execute(
                     """
-                    INSERT INTO fetch_failures (platform, consecutive, last_error, updated_at)
-                    VALUES (?, 0, NULL, ?)
+                    INSERT INTO fetch_failures (platform, consecutive, last_error, updated_at, alerted)
+                    VALUES (?, 0, NULL, ?, 0)
                     ON CONFLICT(platform) DO UPDATE SET
-                        consecutive = 0, last_error = NULL, updated_at = excluded.updated_at
+                        consecutive = 0,
+                        last_error = NULL,
+                        updated_at = excluded.updated_at,
+                        alerted = 0
                     """,
                     (platform, now),
                 )
                 conn.commit()
-                return 0
+                return 0, False
             row = conn.execute(
-                "SELECT consecutive FROM fetch_failures WHERE platform = ?", (platform,)
+                "SELECT consecutive, alerted FROM fetch_failures WHERE platform = ?",
+                (platform,),
             ).fetchone()
             consecutive = (row["consecutive"] if row else 0) + 1
+            already = bool(row["alerted"]) if row else False
             conn.execute(
                 """
-                INSERT INTO fetch_failures (platform, consecutive, last_error, updated_at)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO fetch_failures (platform, consecutive, last_error, updated_at, alerted)
+                VALUES (?, ?, ?, ?, 0)
                 ON CONFLICT(platform) DO UPDATE SET
                     consecutive = excluded.consecutive,
                     last_error = excluded.last_error,
@@ -273,4 +290,15 @@ class EventStore:
                 (platform, consecutive, error, now),
             )
             conn.commit()
-            return consecutive
+            should_alert = consecutive >= 2 and not already
+            return consecutive, should_alert
+
+    def mark_health_alerted(self, platforms: list[str]) -> None:
+        if not platforms:
+            return
+        with self._connect() as conn:
+            conn.executemany(
+                "UPDATE fetch_failures SET alerted = 1 WHERE platform = ?",
+                [(p,) for p in platforms],
+            )
+            conn.commit()

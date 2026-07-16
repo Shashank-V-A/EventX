@@ -154,10 +154,11 @@ def is_bangalore_match(event: HackathonEvent) -> bool:
     - Offline / finals in Bangalore
     - Early rounds may be online (hybrid OK) only if offline side is Bangalore
     - Reject finals / offline rounds in Pune, Delhi, Mumbai, etc.
-    - Reject pan-India online with no Bangalore link
+    - Reject pan-India online with no Bangalore venue signal
     """
     location = event.location or ""
     venue = _event_venue_text(event)
+    mode = _normalized_mode(event)
 
     has_bangalore = _strong_match(event) or (
         bool(location) and _location_match(location)
@@ -171,11 +172,31 @@ def is_bangalore_match(event: HackathonEvent) -> bool:
     # Multi-city offline/hybrid (Bangalore + Pune/Delhi/…) → not Bangalore-only
     if other_city and has_bangalore:
         if location and _location_is_bangalore_only(location):
-            # Location is cleanly Bangalore; other city only in title/org noise
             return True
         return False
 
-    return has_bangalore
+    if not has_bangalore:
+        return False
+
+    # Pure online: require Bangalore in title/location/url (not org-only noise)
+    if mode == "online":
+        loc = location.strip().lower()
+        pure_online_loc = not loc or loc in {
+            "online",
+            "everywhere",
+            "virtual",
+            "remote",
+            "india",
+            "pan india",
+            "pan-india",
+        }
+        if pure_online_loc:
+            title_url = f"{event.title or ''} {event.registration_url or ''}".lower()
+            if location and _location_match(location):
+                return True
+            return _contains_keyword(title_url, BANGALORE_KEYWORDS)
+
+    return True
 
 
 def is_hackathon_match(event: HackathonEvent) -> bool:

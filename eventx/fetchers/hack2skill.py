@@ -7,6 +7,7 @@ from eventx.fetchers._common import USER_AGENT, parse_datetime
 from eventx.models import HackathonEvent
 
 HACK2SKILL_API = "https://hack2skill.com/api/v1/innovator/public/event/public-list"
+_MAX_PAGES = 20
 
 
 def _date_range() -> tuple[str, str]:
@@ -65,7 +66,7 @@ def fetch_hack2skill_hackathons() -> list[HackathonEvent]:
     page = 1
 
     with httpx.Client(timeout=30.0, headers={"User-Agent": USER_AGENT}) as client:
-        while True:
+        while page <= _MAX_PAGES:
             response = client.get(
                 HACK2SKILL_API,
                 params={

@@ -5,6 +5,7 @@ from eventx.fetchers._common import USER_AGENT, format_team_size, parse_datetime
 from eventx.models import HackathonEvent
 
 DEVFOLIO_API = "https://api.devfolio.co/api/hackathons"
+_MAX_PAGES = 20
 
 
 def _normalize_item(item: dict) -> HackathonEvent | None:
@@ -37,7 +38,7 @@ def fetch_devfolio_hackathons() -> list[HackathonEvent]:
     page = 1
 
     with httpx.Client(timeout=30.0, headers={"User-Agent": USER_AGENT}) as client:
-        while True:
+        while page <= _MAX_PAGES:
             response = client.get(
                 DEVFOLIO_API,
                 params={"filter": "application_open", "page": page},
